@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, verify_jwt_in_request
@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__)
+# Set static folder to frontend build
+app = Flask(__name__, static_folder='../frontend/build', static_url_path='')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI', 'mysql+pymysql://root:password@localhost/crm_db')
@@ -83,16 +84,33 @@ class Task(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-# Test route
-@app.route('/', methods=['GET'])
+# Frontend Routes
+@app.route('/')
+def serve_frontend():
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(app.static_folder, 'favicon.ico')
+
+# Catch all route for React Router
+@app.route('/<path:path>')
+def serve_static(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
+
+# API Health Check
+@app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'CRM API is running', 'version': '1.0'})
 
-@app.route('/test', methods=['GET'])
+@app.route('/api/test', methods=['GET'])
 def test_endpoint():
     return jsonify({'message': 'Test endpoint working', 'timestamp': datetime.utcnow().isoformat()})
 
-@app.route('/test-auth', methods=['GET'])
+@app.route('/api/test-auth', methods=['GET'])
 @jwt_required()
 def test_auth_endpoint():
     current_user_id = int(get_jwt_identity())
@@ -105,7 +123,7 @@ def test_auth_endpoint():
     })
 
 # Auth Routes
-@app.route('/auth/login', methods=['POST'])
+@app.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.get_json()
     username = data.get('username')
