@@ -14,16 +14,8 @@ load_dotenv()
 app = Flask(__name__, static_folder='../frontend/build', static_url_path='')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
-# Database configuration
-database_url = os.getenv('DATABASE_URL')
-if database_url:
-    # Production: Use provided DATABASE_URL (PostgreSQL)
-    if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-else:
-    # Development: Use SQLite
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI', 'sqlite:///crm.db')
+# Database configuration - SQLite only for now
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///crm.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 
