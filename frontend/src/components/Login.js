@@ -94,9 +94,7 @@ const Login = ({ onLogin }) => {
         </button>
 
         <div style={{ marginTop: '1rem', fontSize: '14px', color: '#7f8c8d' }}>
-          <p><strong>Demo Accounts:</strong></p>
-          <p>Admin: admin / admin123</p>
-          <p>Caller: caller1 / caller123</p>
+          
         </div>
       </form>
     </div>
