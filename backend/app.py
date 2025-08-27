@@ -23,9 +23,15 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-jwt = JWTManager(app)
+# Initialize extensions
+db = SQLAlchemy()
+migrate = Migrate()
+jwt = JWTManager()
+
+# Initialize with app
+db.init_app(app)
+migrate.init_app(app, db)
+jwt.init_app(app)
 
 # CORS configuration
 CORS(app, resources={
