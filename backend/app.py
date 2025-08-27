@@ -14,12 +14,16 @@ load_dotenv()
 app = Flask(__name__, static_folder='../frontend/build', static_url_path='')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
-# Database configuration - support both DATABASE_URL (Render) and SQLALCHEMY_DATABASE_URI
-database_url = os.getenv('DATABASE_URL') or os.getenv('SQLALCHEMY_DATABASE_URI', 'mysql+pymysql://root:password@localhost/crm_db')
-# Fix postgres:// to postgresql:// for SQLAlchemy
-if database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+# Database configuration - use SQLite for deployment
+database_url = os.getenv('DATABASE_URL')
+if database_url:
+    # If DATABASE_URL is provided (PostgreSQL), fix the URL
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    # Use SQLite for local development and deployment
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///crm.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 
