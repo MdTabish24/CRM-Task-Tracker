@@ -1,0 +1,263 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import api from '../utils/api';
+import VisitNotifications from './VisitNotifications';
+
+const CallerDashboard = ({ user, onLogout }) => {
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [todayProgress, setTodayProgress] = useState(0);
+
+  useEffect(() => {
+    fetchRecords();
+    fetchTodayProgress();
+  }, [currentPage, search]);
+
+  const fetchRecords = async () => {
+    try {
+      const response = await api.get(`/caller/records?page=${currentPage}&search=${search}`);
+
+      setRecords(response.data.records);
+      setTotalPages(response.data.pages);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching records:', error);
+      setLoading(false);
+    }
+  };
+
+  const fetchTodayProgress = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const response = await api.get(`/admin/progress?date=${today}`);
+
+      const myProgress = response.data.progress.find(p => p.caller_id === user.id);
+      setTodayProgress(myProgress ? myProgress.responses_today : 0);
+    } catch (error) {
+      console.error('Error fetching progress:', error);
+    }
+  };
+
+  const handleUpdateRecord = async (recordId, updates) => {
+    try {
+      await api.patch(`/records/${recordId}`, updates);
+
+      // Update local state
+      setRecords(records.map(record => 
+        record.id === recordId ? { ...record, ...updates } : record
+      ));
+      
+      setEditingRecord(null);
+      fetchTodayProgress(); // Refresh progress
+    } catch (error) {
+      console.error('Error updating record:', error);
+    }
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setCurrentPage(1);
+    fetchRecords();
+  };
+
+  const EditForm = ({ record, onSave, onCancel }) => {
+    const [formData, setFormData] = useState({
+      name: record.name || '',
+      response: record.response || '',
+      notes: record.notes || ''
+    });
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      onSave(record.id, formData);
+    };
+
+    return (
+      <tr>
+        <td>{record.phone_number}</td>
+        <td>
+          <input
+            type="text"
+            value={formData.name}
+            onChange={(e) => setFormData({...formData, name: e.target.value})}
+            className="form-control"
+            placeholder="Enter name"
+          />
+        </td>
+        <td>
+          <textarea
+            value={formData.response}
+            onChange={(e) => setFormData({...formData, response: e.target.value})}
+            className="form-control"
+            placeholder="Enter response"
+            rows="2"
+          />
+        </td>
+        <td>
+          <textarea
+            value={formData.notes}
+            onChange={(e) => setFormData({...formData, notes: e.target.value})}
+            className="form-control"
+            placeholder="Enter notes"
+            rows="2"
+          />
+        </td>
+        <td>{record.visit}</td>
+        <td>
+          <button onClick={handleSubmit} className="btn btn-success" style={{marginRight: '0.5rem'}}>
+            Save
+          </button>
+          <button onClick={onCancel} className="btn btn-secondary">
+            Cancel
+          </button>
+        </td>
+      </tr>
+    );
+  };
+
+  if (loading) {
+    return <div className="loading">Loading records...</div>;
+  }
+
+  return (
+    <div>
+      <header className="header">
+        <h1>Caller Dashboard</h1>
+        <div className="header-actions">
+          <div className="user-info">
+            <span>Welcome, {user.name}</span>
+            <Link to="/tasks" className="btn btn-secondary">My Tasks</Link>
+            <button onClick={onLogout} className="btn btn-danger">Logout</button>
+          </div>
+        </div>
+      </header>
+
+      <main className="main-content">
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-number">{todayProgress}</div>
+            <div className="stat-label">Responses Today</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-number">{records.length}</div>
+            <div className="stat-label">Records on Page</div>
+          </div>
+          <div className="stat-card">
+            <div className="progress">
+              <div 
+                className="progress-bar" 
+                style={{ width: `${Math.min(100, (todayProgress / 100) * 100)}%` }}
+              >
+                {Math.round((todayProgress / 100) * 100)}%
+              </div>
+            </div>
+            <div className="stat-label">Daily Target (100)</div>
+          </div>
+        </div>
+
+        <div className="card">
+          <h2>My Assigned Records</h2>
+          
+          <form onSubmit={handleSearch} style={{ marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <input
+                type="text"
+                placeholder="Search by phone or name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="form-control"
+                style={{ flex: 1 }}
+              />
+              <button type="submit" className="btn btn-primary">Search</button>
+            </div>
+          </form>
+
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Phone Number</th>
+                <th>Name</th>
+                <th>Response</th>
+                <th>Notes</th>
+                <th>Visit Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {records.map(record => (
+                editingRecord === record.id ? (
+                  <EditForm
+                    key={record.id}
+                    record={record}
+                    onSave={handleUpdateRecord}
+                    onCancel={() => setEditingRecord(null)}
+                  />
+                ) : (
+                  <tr key={record.id}>
+                    <td>{record.phone_number}</td>
+                    <td>{record.name || '-'}</td>
+                    <td>{record.response || '-'}</td>
+                    <td>{record.notes || '-'}</td>
+                    <td>
+                      <span style={{
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        background: record.visit === 'confirmed' ? '#d4edda' : 
+                                   record.visit === 'declined' ? '#f8d7da' : 
+                                   record.visit === 'visited' ? '#e1f5fe' : '#fff3cd',
+                        color: record.visit === 'confirmed' ? '#155724' : 
+                               record.visit === 'declined' ? '#721c24' : 
+                               record.visit === 'visited' ? '#01579b' : '#856404'
+                      }}>
+                        {record.visit}
+                      </span>
+                    </td>
+                    <td>
+                      <button 
+                        onClick={() => setEditingRecord(record.id)}
+                        className="btn btn-primary"
+                      >
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                )
+              ))}
+            </tbody>
+          </table>
+
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+              <button 
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="btn btn-secondary"
+              >
+                Previous
+              </button>
+              <span style={{ padding: '0.5rem 1rem' }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button 
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="btn btn-secondary"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+
+        <VisitNotifications user={user} />
+      </main>
+    </div>
+  );
+};
+
+export default CallerDashboard;
