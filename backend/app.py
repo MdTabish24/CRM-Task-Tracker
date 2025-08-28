@@ -128,6 +128,49 @@ def serve_static(path):
 def health_check():
     return jsonify({'status': 'CRM API is running', 'version': '1.0'})
 
+@app.route('/api/init-db', methods=['GET'])
+def init_database():
+    try:
+        # Create all tables
+        db.create_all()
+        
+        # Check if admin exists
+        admin = User.query.filter_by(username='admin').first()
+        if admin:
+            return jsonify({'message': 'Database already initialized'})
+        
+        # Create admin user
+        admin = User(
+            name='Administrator',
+            username='admin',
+            password_hash=generate_password_hash('admin123'),
+            role='admin'
+        )
+        db.session.add(admin)
+        
+        # Create caller users
+        for i in range(1, 4):
+            caller = User(
+                name=f'Caller {i}',
+                username=f'caller{i}',
+                password_hash=generate_password_hash('caller123'),
+                role='caller'
+            )
+            db.session.add(caller)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Database initialized successfully',
+            'users_created': 4,
+            'admin': 'admin/admin123',
+            'callers': 'caller1,caller2,caller3/caller123'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/test', methods=['GET'])
 def test_endpoint():
     return jsonify({'message': 'Test endpoint working', 'timestamp': datetime.utcnow().isoformat()})
