@@ -223,7 +223,7 @@ def test_auth():
     })
 
 # Upload Routes
-@app.route('/admin/upload', methods=['POST'])
+@app.route('/api/admin/upload', methods=['POST'])
 @jwt_required()
 def upload_csv():
     current_user_id = int(get_jwt_identity())
@@ -367,7 +367,7 @@ def upload_csv():
             return jsonify({'message': f'Error processing file: {error_msg}'}), 500
 
 # Caller Routes
-@app.route('/caller/records', methods=['GET'])
+@app.route('/api/caller/records', methods=['GET'])
 @jwt_required()
 def get_caller_records():
     current_user_id = int(get_jwt_identity())
@@ -403,7 +403,7 @@ def get_caller_records():
         'current_page': page
     })
 
-@app.route('/records/<int:record_id>', methods=['PATCH'])
+@app.route('/api/records/<int:record_id>', methods=['PATCH'])
 @jwt_required()
 def update_record(record_id):
     current_user_id = int(get_jwt_identity())
@@ -430,7 +430,7 @@ def update_record(record_id):
     return jsonify({'message': 'Record updated successfully'})
 
 # Admin Routes
-@app.route('/admin/progress', methods=['GET'])
+@app.route('/api/admin/progress', methods=['GET'])
 @jwt_required()
 def get_progress():
     current_user_id = int(get_jwt_identity())
@@ -470,7 +470,7 @@ def get_progress():
         'progress': progress_data
     })
 
-@app.route('/visit/<int:record_id>', methods=['PATCH'])
+@app.route('/api/visit/<int:record_id>', methods=['PATCH'])
 @jwt_required()
 def mark_visit(record_id):
     current_user_id = int(get_jwt_identity())
@@ -491,7 +491,7 @@ def mark_visit(record_id):
     return jsonify({'message': 'Visit status updated'})
 
 # Visit Management Routes
-@app.route('/admin/visits', methods=['GET'])
+@app.route('/api/admin/visits', methods=['GET'])
 @jwt_required()
 def get_all_visits():
     current_user_id = int(get_jwt_identity())
@@ -550,7 +550,7 @@ def get_all_visits():
         'current_page': page
     })
 
-@app.route('/admin/visited-records', methods=['GET'])
+@app.route('/api/admin/visited-records', methods=['GET'])
 @jwt_required()
 def get_visited_records():
     current_user_id = int(get_jwt_identity())
@@ -605,7 +605,7 @@ def get_visited_records():
         'current_page': page
     })
 
-@app.route('/admin/visit-stats', methods=['GET'])
+@app.route('/api/admin/visit-stats', methods=['GET'])
 @jwt_required()
 def get_visit_stats():
     current_user_id = int(get_jwt_identity())
@@ -687,7 +687,7 @@ def get_visit_stats():
         }
     })
 
-@app.route('/admin/custom-users-progress', methods=['GET'])
+@app.route('/api/admin/custom-users-progress', methods=['GET'])
 @jwt_required()
 def get_custom_users_progress():
     current_user_id = int(get_jwt_identity())
@@ -741,7 +741,7 @@ def get_custom_users_progress():
         'total_custom_users': len(custom_users)
     })
 
-@app.route('/caller/visit-notifications', methods=['GET'])
+@app.route('/api/caller/visit-notifications', methods=['GET'])
 @jwt_required()
 def get_caller_visit_notifications():
     current_user_id = int(get_jwt_identity())
@@ -809,7 +809,7 @@ def get_caller_visit_notifications():
     })
 
 # Task Routes
-@app.route('/tasks', methods=['POST'])
+@app.route('/api/tasks', methods=['POST'])
 @jwt_required()
 def create_task():
     current_user_id = int(get_jwt_identity())
@@ -833,7 +833,7 @@ def create_task():
     
     return jsonify({'message': 'Task created successfully', 'task_id': task.id})
 
-@app.route('/tasks', methods=['GET'])
+@app.route('/api/tasks', methods=['GET'])
 @jwt_required()
 def get_tasks():
     current_user_id = int(get_jwt_identity())
@@ -859,7 +859,7 @@ def get_tasks():
         } for t in tasks]
     })
 
-@app.route('/tasks/<int:task_id>', methods=['PATCH'])
+@app.route('/api/tasks/<int:task_id>', methods=['PATCH'])
 @jwt_required()
 def update_task(task_id):
     current_user_id = int(get_jwt_identity())
@@ -892,7 +892,7 @@ def update_task(task_id):
     
     return jsonify({'message': 'Task updated successfully'})
 
-@app.route('/tasks/self', methods=['POST'])
+@app.route('/api/tasks/self', methods=['POST'])
 @jwt_required()
 def create_self_task():
     current_user_id = int(get_jwt_identity())
@@ -919,7 +919,7 @@ def create_self_task():
     
     return jsonify({'message': 'Task created successfully', 'task_id': task.id})
 
-@app.route('/tasks/<int:task_id>', methods=['DELETE'])
+@app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
 @jwt_required()
 def delete_task(task_id):
     current_user_id = int(get_jwt_identity())
@@ -937,7 +937,7 @@ def delete_task(task_id):
     return jsonify({'message': 'Task deleted successfully'})
 
 # User Management Routes
-@app.route('/users', methods=['POST'])
+@app.route('/api/users', methods=['POST'])
 @jwt_required()
 def create_user():
     try:
@@ -979,7 +979,7 @@ def create_user():
         db.session.rollback()
         return jsonify({'message': f'Error creating user: {str(e)}'}), 500
 
-@app.route('/users', methods=['GET'])
+@app.route('/api/users', methods=['GET'])
 @jwt_required()
 def get_users():
     current_user_id = int(get_jwt_identity())
@@ -1001,7 +1001,7 @@ def get_users():
     })
 
 # Reports Routes
-@app.route('/reports/calls', methods=['GET'])
+@app.route('/api/reports/calls', methods=['GET'])
 @jwt_required()
 def calls_report():
     current_user_id = int(get_jwt_identity())
@@ -1024,7 +1024,7 @@ def calls_report():
         'completion_rate': (completed_calls / total_records * 100) if total_records > 0 else 0
     })
 
-@app.route('/reports/tasks', methods=['GET'])
+@app.route('/api/reports/tasks', methods=['GET'])
 @jwt_required()
 def tasks_report():
     current_user_id = int(get_jwt_identity())
@@ -1049,7 +1049,7 @@ def tasks_report():
     })
 
 # Role Management Routes
-@app.route('/admin/roles', methods=['GET'])
+@app.route('/api/admin/roles', methods=['GET'])
 @jwt_required()
 def get_roles():
     current_user_id = int(get_jwt_identity())
@@ -1064,7 +1064,7 @@ def get_roles():
     
     return jsonify({'roles': role_list})
 
-@app.route('/admin/roles', methods=['POST'])
+@app.route('/api/admin/roles', methods=['POST'])
 @jwt_required()
 def create_role():
     current_user_id = int(get_jwt_identity())
@@ -1087,7 +1087,7 @@ def create_role():
     return jsonify({'message': 'Role can be used when creating users', 'role': role_name})
 
 # Custom Role Dashboard
-@app.route('/dashboard/custom', methods=['GET'])
+@app.route('/api/dashboard/custom', methods=['GET'])
 @jwt_required()
 def custom_dashboard():
     current_user_id = int(get_jwt_identity())
