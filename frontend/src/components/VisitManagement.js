@@ -354,7 +354,13 @@ const VisitManagement = () => {
       </div>
 
       {showVisitedRecords && (
-        <VisitedRecords onClose={() => setShowVisitedRecords(false)} />
+        <VisitedRecords 
+          onClose={() => setShowVisitedRecords(false)} 
+          onAdmissionCreated={() => {
+            fetchStats();
+            fetchAdmissions();
+          }}
+        />
       )}
 
       {/* Other Admission Modal */}

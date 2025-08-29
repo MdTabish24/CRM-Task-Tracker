@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 
-const VisitedRecords = ({ onClose }) => {
+const VisitedRecords = ({ onClose, onAdmissionCreated }) => {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,6 +71,10 @@ const VisitedRecords = ({ onClose }) => {
       await api.post(`/admin/other-admission/${selectedRecord.id}`, otherAdmissionForm);
       setShowOtherAdmissionModal(false);
       fetchRecords();
+      // Notify parent to refresh stats
+      if (onAdmissionCreated) {
+        onAdmissionCreated();
+      }
     } catch (error) {
       console.error('Error creating other admission:', error);
     }

@@ -562,6 +562,11 @@ def create_other_admission(record_id):
         processed_by=current_user_id
     )
     
+    # Update record visit status to confirmed (since they enrolled)
+    record.visit = 'confirmed'
+    record.visit_by = current_user_id
+    record.updated_at = datetime.utcnow()
+    
     db.session.add(admission)
     db.session.commit()
     
