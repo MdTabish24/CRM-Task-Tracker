@@ -429,7 +429,36 @@ def update_record(record_id):
     
     return jsonify({'message': 'Record updated successfully'})
 
-# Admin Routes
+# Admin Routes - Caller Tasks View
+@app.route('/api/admin/caller-tasks', methods=['GET'])
+@jwt_required()
+def get_all_caller_tasks():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'admin':
+        return jsonify({'message': 'Admin access required'}), 403
+    
+    # Get all tasks with caller info
+    tasks = db.session.query(Task, User).join(User, Task.assigned_to == User.id).filter(
+        User.role == 'caller'
+    ).order_by(Task.created_at.desc()).all()
+    
+    return jsonify({
+        'tasks': [{
+            'id': task.id,
+            'title': task.title,
+            'description': task.description,
+            'status': task.status,
+            'progress': task.progress,
+            'deadline': task.deadline.isoformat() if task.deadline else None,
+            'created_at': task.created_at.isoformat(),
+            'caller_name': user.name,
+            'caller_id': user.id,
+            'is_self_assigned': task.assigned_by == task.assigned_to
+        } for task, user in tasks]
+    })
+
 @app.route('/api/admin/progress', methods=['GET'])
 @jwt_required()
 def get_progress():
@@ -807,6 +836,94 @@ def get_caller_visit_notifications():
             'pending_visits': pending_visits
         }
     })
+
+# Caller Tasks Routes (Todo-style)
+@app.route('/api/caller/tasks', methods=['GET'])
+@jwt_required()
+def get_caller_tasks():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role not in ['caller', 'admin']:
+        return jsonify({'message': 'Access denied'}), 403
+    
+    # Get tasks assigned to current caller
+    tasks = Task.query.filter_by(assigned_to=current_user_id).order_by(Task.created_at.desc()).all()
+    
+    return jsonify({
+        'tasks': [{
+            'id': task.id,
+            'title': task.title,
+            'description': task.description,
+            'status': task.status,
+            'progress': task.progress,
+            'deadline': task.deadline.isoformat() if task.deadline else None,
+            'created_at': task.created_at.isoformat(),
+            'assigned_by_name': User.query.get(task.assigned_by).name if task.assigned_by else 'System'
+        } for task in tasks]
+    })
+
+@app.route('/api/caller/tasks', methods=['POST'])
+@jwt_required()
+def create_caller_task():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'caller':
+        return jsonify({'message': 'Only callers can create personal tasks'}), 403
+    
+    data = request.get_json()
+    
+    task = Task(
+        title=data.get('title'),
+        description=data.get('description', ''),
+        assigned_to=current_user_id,
+        assigned_by=current_user_id,  # Self-assigned
+        deadline=datetime.strptime(data['deadline'], '%Y-%m-%d') if data.get('deadline') else None,
+        status='pending'
+    )
+    
+    db.session.add(task)
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Task created successfully',
+        'task': {
+            'id': task.id,
+            'title': task.title,
+            'description': task.description,
+            'status': task.status,
+            'deadline': task.deadline.isoformat() if task.deadline else None
+        }
+    }), 201
+
+@app.route('/api/caller/tasks/<int:task_id>', methods=['PATCH'])
+@jwt_required()
+def update_caller_task(task_id):
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    task = Task.query.get_or_404(task_id)
+    
+    # Only allow caller to update their own tasks or admin to update any
+    if user.role == 'caller' and task.assigned_to != current_user_id:
+        return jsonify({'message': 'Access denied'}), 403
+    
+    data = request.get_json()
+    
+    if 'status' in data:
+        task.status = data['status']
+    if 'progress' in data:
+        task.progress = data['progress']
+    if 'title' in data:
+        task.title = data['title']
+    if 'description' in data:
+        task.description = data['description']
+    
+    task.updated_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify({'message': 'Task updated successfully'})
 
 # Task Routes
 @app.route('/api/tasks', methods=['POST'])

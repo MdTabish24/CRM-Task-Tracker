@@ -15,6 +15,7 @@ const AdminDashboard = ({ user, onLogout }) => {
     totalTasks: 0,
     completedCalls: 0
   });
+  const [callerTasks, setCallerTasks] = useState([]);
 
   useEffect(() => {
     // Test authentication first
@@ -50,9 +51,21 @@ const AdminDashboard = ({ user, onLogout }) => {
         totalTasks: tasksRes.data.total_tasks,
         completedCalls: callsRes.data.completed_calls
       });
+      
+      // Fetch caller tasks
+      fetchCallerTasks();
     } catch (error) {
       console.error('Error fetching stats:', error);
       console.error('Error details:', error.response?.data);
+    }
+  };
+
+  const fetchCallerTasks = async () => {
+    try {
+      const response = await api.get('/admin/caller-tasks');
+      setCallerTasks(response.data.tasks);
+    } catch (error) {
+      console.error('Error fetching caller tasks:', error);
     }
   };
 
@@ -135,6 +148,64 @@ const AdminDashboard = ({ user, onLogout }) => {
                   <Link to="/tasks" className="btn btn-secondary">📋 Manage Tasks</Link>
                 </div>
               </div>
+
+              {callerTasks.length > 0 && (
+                <div className="card">
+                  <h3>Caller Personal Tasks ({callerTasks.length})</h3>
+                  <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Caller</th>
+                          <th>Task</th>
+                          <th>Status</th>
+                          <th>Deadline</th>
+                          <th>Type</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {callerTasks.map((task) => (
+                          <tr key={task.id}>
+                            <td>{task.caller_name}</td>
+                            <td>
+                              <div style={{ fontWeight: '500' }}>{task.title}</div>
+                              {task.description && (
+                                <div style={{ fontSize: '12px', color: '#666' }}>
+                                  {task.description}
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              <span style={{
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                backgroundColor: task.status === 'completed' ? '#d4edda' : 
+                                               task.status === 'in_progress' ? '#fff3cd' : '#f8d7da',
+                                color: task.status === 'completed' ? '#155724' : 
+                                       task.status === 'in_progress' ? '#856404' : '#721c24'
+                              }}>
+                                {task.status.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td>
+                              {task.deadline ? new Date(task.deadline).toLocaleDateString() : '-'}
+                            </td>
+                            <td>
+                              <span style={{
+                                fontSize: '11px',
+                                color: task.is_self_assigned ? '#28a745' : '#6c757d'
+                              }}>
+                                {task.is_self_assigned ? 'Self' : 'Assigned'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           } />
           <Route path="/upload" element={<UploadCSV onUploadSuccess={fetchStats} />} />

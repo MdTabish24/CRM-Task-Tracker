@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../utils/api';
 import VisitNotifications from './VisitNotifications';
+import CallerTasks from './CallerTasks';
 
 const CallerDashboard = ({ user, onLogout }) => {
   const [records, setRecords] = useState([]);
@@ -158,6 +159,8 @@ const CallerDashboard = ({ user, onLogout }) => {
             <div className="stat-label">Daily Target (100)</div>
           </div>
         </div>
+
+        <CallerTasks />
 
         <div className="card">
           <h2>My Assigned Records</h2>
