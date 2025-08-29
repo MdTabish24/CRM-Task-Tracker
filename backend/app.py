@@ -44,15 +44,8 @@ db.init_app(app)
 migrate.init_app(app, db)
 jwt.init_app(app)
 
-# CORS configuration
-CORS(app, resources={
-    r"/*": {
-        "origins": ["http://localhost:3000"],
-        "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
-    }
-})
+# CORS configuration - Allow all for development
+CORS(app, origins="*", supports_credentials=True)
 
 # JWT error handlers
 @jwt.expired_token_loader
@@ -1358,6 +1351,33 @@ def custom_dashboard():
             'in_progress_tasks': len([t for t in my_tasks if t.status == 'in_progress']),
             'pending_tasks': len([t for t in my_tasks if t.status == 'pending'])
         }
+    })
+
+# Admin Credentials Update
+@app.route('/api/admin/update-credentials', methods=['POST'])
+@jwt_required()
+def update_admin_credentials():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'admin':
+        return jsonify({'message': 'Admin access required'}), 403
+    
+    data = request.get_json()
+    new_username = data.get('username')
+    new_password = data.get('password')
+    
+    if not new_username or not new_password:
+        return jsonify({'message': 'Username and password required'}), 400
+    
+    # Update current admin user
+    user.username = new_username
+    user.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Admin credentials updated successfully',
+        'new_username': new_username
     })
 
 if __name__ == '__main__':
