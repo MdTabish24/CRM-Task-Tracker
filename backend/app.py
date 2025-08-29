@@ -1363,14 +1363,25 @@ def clear_records_only():
     if user.role != 'admin':
         return jsonify({'message': 'Admin access required'}), 403
     
-    # Delete only phone records, keep tasks and users
-    records_deleted = Record.query.delete()
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Phone records cleared successfully',
-        'records_deleted': records_deleted
-    })
+    try:
+        # Delete admissions first (foreign key constraint)
+        Admission.query.delete()
+        
+        # Then delete phone records
+        records_deleted = Record.query.delete()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Phone records cleared successfully',
+            'records_deleted': records_deleted
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'message': f'Error clearing records: {str(e)}',
+            'records_deleted': 0
+        }), 500
 
 # Admin Credentials Update
 @app.route('/api/admin/update-credentials', methods=['POST'])
