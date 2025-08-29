@@ -106,6 +106,17 @@ class Task(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class Admission(db.Model):
+    __tablename__ = 'admissions'
+    id = db.Column(db.Integer, primary_key=True)
+    record_id = db.Column(db.Integer, db.ForeignKey('records.id'), nullable=False)
+    admission_type = db.Column(db.Enum('confirmed', 'other', name='admission_type'), nullable=False)
+    discount_rate = db.Column(db.Float, nullable=True)  # For other admissions
+    total_fees = db.Column(db.Float, nullable=True)     # For other admissions
+    enrolled_course = db.Column(db.String(200), nullable=True)  # For other admissions
+    processed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 # Frontend Routes
 @app.route('/')
 def serve_frontend():
@@ -515,9 +526,90 @@ def mark_visit(record_id):
         record.visit = data['visit']
         record.visit_by = current_user_id
         record.updated_at = datetime.utcnow()
+        
+        # Create admission record for confirmed visits
+        if data['visit'] == 'confirmed':
+            admission = Admission(
+                record_id=record_id,
+                admission_type='confirmed',
+                processed_by=current_user_id
+            )
+            db.session.add(admission)
+        
         db.session.commit()
     
     return jsonify({'message': 'Visit status updated'})
+
+@app.route('/api/admin/other-admission/<int:record_id>', methods=['POST'])
+@jwt_required()
+def create_other_admission(record_id):
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'admin':
+        return jsonify({'message': 'Admin access required'}), 403
+    
+    record = Record.query.get_or_404(record_id)
+    data = request.get_json()
+    
+    # Create other admission record
+    admission = Admission(
+        record_id=record_id,
+        admission_type='other',
+        discount_rate=data.get('discount_rate'),
+        total_fees=data.get('total_fees'),
+        enrolled_course=data.get('enrolled_course'),
+        processed_by=current_user_id
+    )
+    
+    db.session.add(admission)
+    db.session.commit()
+    
+    return jsonify({'message': 'Other admission recorded successfully'})
+
+@app.route('/api/admin/admissions', methods=['GET'])
+@jwt_required()
+def get_admissions():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'admin':
+        return jsonify({'message': 'Admin access required'}), 403
+    
+    # Get all admissions with record and caller info
+    admissions = db.session.query(Admission, Record, User).join(
+        Record, Admission.record_id == Record.id
+    ).join(
+        User, Record.caller_id == User.id
+    ).order_by(Admission.created_at.desc()).all()
+    
+    confirmed_admissions = []
+    other_admissions = []
+    
+    for admission, record, caller in admissions:
+        admission_data = {
+            'id': admission.id,
+            'record_id': record.id,
+            'phone_number': record.phone_number,
+            'name': record.name,
+            'caller_name': caller.name,
+            'created_at': admission.created_at.isoformat(),
+            'discount_rate': admission.discount_rate,
+            'total_fees': admission.total_fees,
+            'enrolled_course': admission.enrolled_course
+        }
+        
+        if admission.admission_type == 'confirmed':
+            confirmed_admissions.append(admission_data)
+        else:
+            other_admissions.append(admission_data)
+    
+    return jsonify({
+        'confirmed_admissions': confirmed_admissions,
+        'other_admissions': other_admissions,
+        'total_confirmed': len(confirmed_admissions),
+        'total_other': len(other_admissions)
+    })
 
 # Visit Management Routes
 @app.route('/api/admin/visits', methods=['GET'])

@@ -13,6 +13,15 @@ const VisitManagement = () => {
     search_phone: ''
   });
   const [showVisitedRecords, setShowVisitedRecords] = useState(false);
+  const [showOtherAdmissionModal, setShowOtherAdmissionModal] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [showAdmissionsModal, setShowAdmissionsModal] = useState(false);
+  const [admissions, setAdmissions] = useState({ confirmed_admissions: [], other_admissions: [] });
+  const [otherAdmissionForm, setOtherAdmissionForm] = useState({
+    discount_rate: '',
+    total_fees: '',
+    enrolled_course: ''
+  });
 
   useEffect(() => {
     fetchVisits();
@@ -66,6 +75,38 @@ const VisitManagement = () => {
     setCurrentPage(1);
   };
 
+  const handleOtherAdmission = (record) => {
+    setSelectedRecord(record);
+    setShowOtherAdmissionModal(true);
+    setOtherAdmissionForm({ discount_rate: '', total_fees: '', enrolled_course: '' });
+  };
+
+  const submitOtherAdmission = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post(`/admin/other-admission/${selectedRecord.id}`, otherAdmissionForm);
+      setShowOtherAdmissionModal(false);
+      fetchVisits();
+      fetchStats();
+    } catch (error) {
+      console.error('Error creating other admission:', error);
+    }
+  };
+
+  const fetchAdmissions = async () => {
+    try {
+      const response = await api.get('/admin/admissions');
+      setAdmissions(response.data);
+    } catch (error) {
+      console.error('Error fetching admissions:', error);
+    }
+  };
+
+  const handleViewConfirmedAdmissions = () => {
+    fetchAdmissions();
+    setShowAdmissionsModal(true);
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -96,11 +137,16 @@ const VisitManagement = () => {
                   <div className="stat-sublabel">Click to manage</div>
                 </div>
               </div>
-              <div className="stat-card confirmed-card">
+              <div 
+                className="stat-card confirmed-card clickable-card"
+                onClick={handleViewConfirmedAdmissions}
+                title="Click to view confirmed admissions"
+              >
                 <div className="stat-icon">✅</div>
                 <div className="stat-content">
                   <div className="stat-number">{stats.overall_stats.total_confirmed}</div>
                   <div className="stat-label">Visits Confirmed</div>
+                  <div className="stat-sublabel">Click to view details</div>
                 </div>
               </div>
               <div className="stat-card pending-card">
@@ -266,6 +312,13 @@ const VisitManagement = () => {
                             >
                               ❌ Declined
                             </button>
+                            <button
+                              onClick={() => handleOtherAdmission(visit)}
+                              className="btn btn-other-admission"
+                              title="Other Admission"
+                            >
+                              🎓 Other Admission
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -309,6 +362,124 @@ const VisitManagement = () => {
 
       {showVisitedRecords && (
         <VisitedRecords onClose={() => setShowVisitedRecords(false)} />
+      )}
+
+      {/* Other Admission Modal */}
+      {showOtherAdmissionModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white', padding: '2rem', borderRadius: '8px',
+            width: '500px', maxWidth: '90vw'
+          }}>
+            <h3>🎓 Other Admission - {selectedRecord?.name || selectedRecord?.phone_number}</h3>
+            <form onSubmit={submitOtherAdmission}>
+              <div className="form-group">
+                <label>Discount Rate (%)</label>
+                <input
+                  type="number"
+                  value={otherAdmissionForm.discount_rate}
+                  onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, discount_rate: e.target.value})}
+                  className="form-control"
+                  placeholder="Enter discount percentage..."
+                  min="0" max="100"
+                />
+              </div>
+              <div className="form-group">
+                <label>Total Fees</label>
+                <input
+                  type="number"
+                  value={otherAdmissionForm.total_fees}
+                  onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, total_fees: e.target.value})}
+                  className="form-control"
+                  placeholder="Enter total fees..."
+                  min="0"
+                />
+              </div>
+              <div className="form-group">
+                <label>Enrolled Course</label>
+                <input
+                  type="text"
+                  value={otherAdmissionForm.enrolled_course}
+                  onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, enrolled_course: e.target.value})}
+                  className="form-control"
+                  placeholder="Enter course name..."
+                  required
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShowOtherAdmissionModal(false)} className="btn btn-secondary">
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Record Admission
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Admissions View Modal */}
+      {showAdmissionsModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white', padding: '2rem', borderRadius: '8px',
+            width: '800px', maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3>🎓 Admissions Overview</h3>
+              <button onClick={() => setShowAdmissionsModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>
+                ×
+              </button>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+              {/* Confirmed Admissions */}
+              <div>
+                <h4>✅ Confirmed Admissions ({admissions.confirmed_admissions.length})</h4>
+                <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px' }}>
+                  {admissions.confirmed_admissions.map((admission) => (
+                    <div key={admission.id} style={{ padding: '0.75rem', borderBottom: '1px solid #eee' }}>
+                      <div style={{ fontWeight: '500' }}>{admission.name || admission.phone_number}</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Caller: {admission.caller_name}</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>{new Date(admission.created_at).toLocaleDateString()}</div>
+                    </div>
+                  ))}
+                  {admissions.confirmed_admissions.length === 0 && (
+                    <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>No confirmed admissions yet</div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Other Admissions */}
+              <div>
+                <h4>🎓 Other Admissions ({admissions.other_admissions.length})</h4>
+                <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px' }}>
+                  {admissions.other_admissions.map((admission) => (
+                    <div key={admission.id} style={{ padding: '0.75rem', borderBottom: '1px solid #eee' }}>
+                      <div style={{ fontWeight: '500' }}>{admission.name || admission.phone_number}</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Course: {admission.enrolled_course}</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Fees: ₹{admission.total_fees} (Discount: {admission.discount_rate}%)</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Caller: {admission.caller_name}</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>{new Date(admission.created_at).toLocaleDateString()}</div>
+                    </div>
+                  ))}
+                  {admissions.other_admissions.length === 0 && (
+                    <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>No other admissions yet</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       <style>{`
@@ -637,6 +808,17 @@ const VisitManagement = () => {
 
         .btn-declined:hover {
           background: #c0392b;
+        }
+
+        .btn-other-admission {
+          background: #f39c12;
+          color: white;
+          padding: 0.5rem 0.75rem;
+          font-size: 12px;
+        }
+
+        .btn-other-admission:hover {
+          background: #e67e22;
         }
 
         .no-records {
