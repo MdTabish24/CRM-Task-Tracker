@@ -1353,6 +1353,25 @@ def custom_dashboard():
         }
     })
 
+# Clear Records Only
+@app.route('/api/admin/clear-records', methods=['POST'])
+@jwt_required()
+def clear_records_only():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'admin':
+        return jsonify({'message': 'Admin access required'}), 403
+    
+    # Delete only phone records, keep tasks and users
+    records_deleted = Record.query.delete()
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Phone records cleared successfully',
+        'records_deleted': records_deleted
+    })
+
 # Admin Credentials Update
 @app.route('/api/admin/update-credentials', methods=['POST'])
 @jwt_required()
