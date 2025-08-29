@@ -76,6 +76,7 @@ const AdminDashboard = ({ user, onLogout }) => {
     if (path.includes('visits')) return 'visits';
     if (path.includes('users')) return 'users';
     if (path.includes('reports')) return 'reports';
+    if (path.includes('caller-tasks')) return 'caller-tasks';
     return 'dashboard';
   };
 
@@ -111,6 +112,9 @@ const AdminDashboard = ({ user, onLogout }) => {
           </li>
           <li className={getActiveTab() === 'reports' ? 'active' : ''}>
             <Link to="/admin/reports">Reports</Link>
+          </li>
+          <li className={getActiveTab() === 'caller-tasks' ? 'active' : ''}>
+            <Link to="/admin/caller-tasks">Caller Tasks</Link>
           </li>
         </ul>
       </nav>
@@ -213,6 +217,111 @@ const AdminDashboard = ({ user, onLogout }) => {
           <Route path="/visits" element={<VisitManagement />} />
           <Route path="/users" element={<UserManagement />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/caller-tasks" element={
+            <div>
+              <h2>Caller Personal Tasks</h2>
+              {callerTasks.length === 0 ? (
+                <div className="card">
+                  <p>No caller tasks found. Callers haven't created any personal tasks yet.</p>
+                </div>
+              ) : (
+                <div className="card">
+                  <div style={{ marginBottom: '15px' }}>
+                    <strong>Total Tasks: {callerTasks.length}</strong>
+                  </div>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Caller</th>
+                        <th>Task</th>
+                        <th>Status</th>
+                        <th>Progress</th>
+                        <th>Deadline</th>
+                        <th>Created</th>
+                        <th>Type</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {callerTasks.map((task) => (
+                        <tr key={task.id}>
+                          <td>
+                            <strong>{task.caller_name}</strong>
+                            <div style={{ fontSize: '12px', color: '#666' }}>ID: {task.caller_id}</div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: '500', marginBottom: '4px' }}>{task.title}</div>
+                            {task.description && (
+                              <div style={{ fontSize: '12px', color: '#666' }}>
+                                {task.description}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <span style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              backgroundColor: task.status === 'completed' ? '#d4edda' : 
+                                             task.status === 'in_progress' ? '#fff3cd' : '#f8d7da',
+                              color: task.status === 'completed' ? '#155724' : 
+                                     task.status === 'in_progress' ? '#856404' : '#721c24'
+                            }}>
+                              {task.status.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{
+                                width: '60px',
+                                height: '8px',
+                                backgroundColor: '#e9ecef',
+                                borderRadius: '4px',
+                                overflow: 'hidden'
+                              }}>
+                                <div style={{
+                                  width: `${task.progress}%`,
+                                  height: '100%',
+                                  backgroundColor: task.progress === 100 ? '#28a745' : '#007bff',
+                                  transition: 'width 0.3s ease'
+                                }} />
+                              </div>
+                              <span style={{ fontSize: '12px' }}>{task.progress}%</span>
+                            </div>
+                          </td>
+                          <td>
+                            {task.deadline ? (
+                              <div>
+                                <div>{new Date(task.deadline).toLocaleDateString()}</div>
+                                {new Date(task.deadline) < new Date() && task.status !== 'completed' && (
+                                  <div style={{ fontSize: '11px', color: '#dc3545' }}>Overdue</div>
+                                )}
+                              </div>
+                            ) : '-'}
+                          </td>
+                          <td>
+                            <div style={{ fontSize: '12px' }}>
+                              {new Date(task.created_at).toLocaleDateString()}
+                            </div>
+                          </td>
+                          <td>
+                            <span style={{
+                              fontSize: '11px',
+                              padding: '2px 6px',
+                              borderRadius: '3px',
+                              backgroundColor: task.is_self_assigned ? '#e8f5e8' : '#f8f9fa',
+                              color: task.is_self_assigned ? '#28a745' : '#6c757d'
+                            }}>
+                              {task.is_self_assigned ? 'Self-Created' : 'Assigned'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          } />
         </Routes>
       </main>
     </div>

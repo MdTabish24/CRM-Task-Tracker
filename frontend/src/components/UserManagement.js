@@ -9,6 +9,13 @@ const UserManagement = () => {
   const [roles, setRoles] = useState(['admin', 'caller']);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [taskForm, setTaskForm] = useState({
+    title: '',
+    description: '',
+    deadline: ''
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -32,6 +39,32 @@ const UserManagement = () => {
       setRoles(response.data.roles);
     } catch (error) {
       console.error('Error fetching roles:', error);
+    }
+  };
+
+  const handleAssignTask = (user) => {
+    setSelectedUser(user);
+    setShowTaskModal(true);
+    setTaskForm({ title: '', description: '', deadline: '' });
+  };
+
+  const handleTaskSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.post('/tasks', {
+        ...taskForm,
+        assigned_to: selectedUser.id
+      });
+      
+      setSuccess(`Task assigned to ${selectedUser.name} successfully!`);
+      setShowTaskModal(false);
+      setSelectedUser(null);
+      setTaskForm({ title: '', description: '', deadline: '' });
+    } catch (error) {
+      setError(error.response?.data?.message || 'Error assigning task');
     }
   };
 
@@ -332,6 +365,7 @@ const UserManagement = () => {
               <th>Role</th>
               <th>Created At</th>
               <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -363,6 +397,20 @@ const UserManagement = () => {
                     Active
                   </span>
                 </td>
+                <td>
+                  {user.role !== 'admin' && (
+                    <button
+                      onClick={() => handleAssignTask(user)}
+                      className="btn btn-primary"
+                      style={{
+                        fontSize: '12px',
+                        padding: '4px 8px'
+                      }}
+                    >
+                      📋 Assign Task
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -374,6 +422,82 @@ const UserManagement = () => {
           </div>
         )}
       </div>
+
+      {/* Task Assignment Modal */}
+      {showTaskModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            width: '500px',
+            maxWidth: '90vw'
+          }}>
+            <h3>Assign Task to {selectedUser?.name}</h3>
+            <form onSubmit={handleTaskSubmit}>
+              <div className="form-group">
+                <label>Task Title</label>
+                <input
+                  type="text"
+                  value={taskForm.title}
+                  onChange={(e) => setTaskForm({...taskForm, title: e.target.value})}
+                  className="form-control"
+                  placeholder="Enter task title..."
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Description</label>
+                <textarea
+                  value={taskForm.description}
+                  onChange={(e) => setTaskForm({...taskForm, description: e.target.value})}
+                  className="form-control"
+                  placeholder="Enter task description..."
+                  rows="3"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Deadline (Optional)</label>
+                <input
+                  type="date"
+                  value={taskForm.deadline}
+                  onChange={(e) => setTaskForm({...taskForm, deadline: e.target.value})}
+                  className="form-control"
+                />
+              </div>
+              
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTaskModal(false);
+                    setSelectedUser(null);
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Assign Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <h3>User Guidelines</h3>
