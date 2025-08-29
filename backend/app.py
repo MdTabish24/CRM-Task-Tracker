@@ -1383,6 +1383,28 @@ def clear_records_only():
             'records_deleted': 0
         }), 500
 
+# Delete Old Admin
+@app.route('/api/admin/delete-old-admin', methods=['POST'])
+@jwt_required()
+def delete_old_admin():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'admin':
+        return jsonify({'message': 'Admin access required'}), 403
+    
+    data = request.get_json()
+    old_username = data.get('old_username', 'admin')
+    
+    # Find and delete old admin (not current user)
+    old_admin = User.query.filter_by(username=old_username).first()
+    if old_admin and old_admin.id != current_user_id:
+        db.session.delete(old_admin)
+        db.session.commit()
+        return jsonify({'message': f'Old admin {old_username} deleted successfully'})
+    
+    return jsonify({'message': 'Old admin not found or cannot delete current user'})
+
 # Admin Credentials Update
 @app.route('/api/admin/update-credentials', methods=['POST'])
 @jwt_required()
