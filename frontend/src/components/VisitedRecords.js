@@ -10,6 +10,13 @@ const VisitedRecords = ({ onClose }) => {
     search_name: '',
     search_phone: ''
   });
+  const [showOtherAdmissionModal, setShowOtherAdmissionModal] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [otherAdmissionForm, setOtherAdmissionForm] = useState({
+    discount_rate: '',
+    total_fees: '',
+    enrolled_course: ''
+  });
 
   useEffect(() => {
     fetchRecords();
@@ -50,6 +57,23 @@ const VisitedRecords = ({ onClose }) => {
   const clearSearch = () => {
     setSearchFilters({ search_name: '', search_phone: '' });
     setCurrentPage(1);
+  };
+
+  const handleOtherAdmission = (record) => {
+    setSelectedRecord(record);
+    setShowOtherAdmissionModal(true);
+    setOtherAdmissionForm({ discount_rate: '', total_fees: '', enrolled_course: '' });
+  };
+
+  const submitOtherAdmission = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post(`/admin/other-admission/${selectedRecord.id}`, otherAdmissionForm);
+      setShowOtherAdmissionModal(false);
+      fetchRecords();
+    } catch (error) {
+      console.error('Error creating other admission:', error);
+    }
   };
 
   if (loading) {
@@ -157,6 +181,13 @@ const VisitedRecords = ({ onClose }) => {
                             >
                               ❌ Declined
                             </button>
+                            <button
+                              onClick={() => handleOtherAdmission(record)}
+                              className="btn btn-other-admission"
+                              title="Other Admission"
+                            >
+                              🎓 Other Admission
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -197,6 +228,72 @@ const VisitedRecords = ({ onClose }) => {
           </div>
         </div>
       </div>
+
+      {/* Other Admission Modal */}
+      {showOtherAdmissionModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1001
+        }}>
+          <div style={{
+            backgroundColor: 'white', padding: '2rem', borderRadius: '8px',
+            width: '500px', maxWidth: '90vw'
+          }}>
+            <h3>🎓 Other Admission - {selectedRecord?.name || selectedRecord?.phone_number}</h3>
+            <form onSubmit={submitOtherAdmission}>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Discount Rate (%)</label>
+                <input
+                  type="number"
+                  value={otherAdmissionForm.discount_rate}
+                  onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, discount_rate: e.target.value})}
+                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                  placeholder="Enter discount percentage..."
+                  min="0" max="100"
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Total Fees</label>
+                <input
+                  type="number"
+                  value={otherAdmissionForm.total_fees}
+                  onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, total_fees: e.target.value})}
+                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                  placeholder="Enter total fees..."
+                  min="0"
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Enrolled Course</label>
+                <input
+                  type="text"
+                  value={otherAdmissionForm.enrolled_course}
+                  onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, enrolled_course: e.target.value})}
+                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                  placeholder="Enter course name..."
+                  required
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowOtherAdmissionModal(false)} 
+                  style={{ padding: '0.75rem 1rem', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  style={{ padding: '0.75rem 1rem', background: '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Record Admission
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .modal-overlay {
@@ -437,6 +534,17 @@ const VisitedRecords = ({ onClose }) => {
 
         .btn-declined:hover {
           background: #c0392b;
+        }
+
+        .btn-other-admission {
+          background: #f39c12;
+          color: white;
+          padding: 0.5rem 0.75rem;
+          font-size: 12px;
+        }
+
+        .btn-other-admission:hover {
+          background: #e67e22;
         }
 
         .no-records {

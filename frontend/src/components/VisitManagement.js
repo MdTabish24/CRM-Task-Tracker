@@ -312,13 +312,6 @@ const VisitManagement = () => {
                             >
                               ❌ Declined
                             </button>
-                            <button
-                              onClick={() => handleOtherAdmission(visit)}
-                              className="btn btn-other-admission"
-                              title="Other Admission"
-                            >
-                              🎓 Other Admission
-                            </button>
                           </div>
                         </td>
                       </tr>
