@@ -1429,21 +1429,31 @@ def update_admin_credentials():
 # Catch all route for React Router - MUST be at the end
 @app.route('/<path:path>')
 def serve_static(path):
+    print(f"CATCH-ALL ROUTE HIT: {path}")
+    
     # Skip API routes
     if path.startswith('api/'):
+        print(f"API route not found: {path}")
         return jsonify({'error': 'API endpoint not found'}), 404
     
     # Check if it's a static file (has extension)
     if '.' in path:
+        print(f"Static file requested: {path}")
         # Try to serve static file if it exists
         try:
             return send_from_directory(app.static_folder, path)
-        except:
-            # If static file not found, return 404
+        except Exception as e:
+            print(f"Static file not found: {path}, error: {e}")
             return jsonify({'error': 'File not found'}), 404
     
     # For all other routes (React Router routes), serve index.html
-    return send_from_directory(app.static_folder, 'index.html')
+    print(f"Serving index.html for React route: {path}")
+    print(f"Static folder: {app.static_folder}")
+    try:
+        return send_from_directory(app.static_folder, 'index.html')
+    except Exception as e:
+        print(f"ERROR serving index.html: {e}")
+        return jsonify({'error': 'index.html not found'}), 404
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
