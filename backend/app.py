@@ -112,14 +112,27 @@ class Admission(db.Model):
     processed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# Frontend Routes
+# Frontend Routes - MUST BE FIRST
 @app.route('/')
 def serve_frontend():
+    print("ROOT ROUTE HIT")
     return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/favicon.ico')
 def favicon():
+    print("FAVICON ROUTE HIT")
     return send_from_directory(app.static_folder, 'favicon.ico')
+
+# React Router catch-all - MUST BE AFTER API ROUTES
+@app.route('/login')
+@app.route('/admin')
+@app.route('/admin/<path:subpath>')
+@app.route('/caller')
+@app.route('/custom')
+@app.route('/tasks')
+def serve_react_routes():
+    print(f"REACT ROUTE HIT: {request.path}")
+    return send_from_directory(app.static_folder, 'index.html')
 
 
 
@@ -1428,34 +1441,28 @@ def update_admin_credentials():
         'new_username': new_username
     })
 
-# Catch all route for React Router - MUST be at the end
+# Static files catch-all - MUST be at the end
 @app.route('/<path:path>')
-def serve_static(path):
-    print(f"CATCH-ALL ROUTE HIT: {path}")
+def serve_static_files(path):
+    print(f"STATIC FILE CATCH-ALL: {path}")
     
     # Skip API routes
     if path.startswith('api/'):
         print(f"API route not found: {path}")
         return jsonify({'error': 'API endpoint not found'}), 404
     
-    # Check if it's a static file (has extension)
+    # Serve static files only
     if '.' in path:
         print(f"Static file requested: {path}")
-        # Try to serve static file if it exists
         try:
             return send_from_directory(app.static_folder, path)
         except Exception as e:
             print(f"Static file not found: {path}, error: {e}")
             return jsonify({'error': 'File not found'}), 404
     
-    # For all other routes (React Router routes), serve index.html
-    print(f"Serving index.html for React route: {path}")
-    print(f"Static folder: {app.static_folder}")
-    try:
-        return send_from_directory(app.static_folder, 'index.html')
-    except Exception as e:
-        print(f"ERROR serving index.html: {e}")
-        return jsonify({'error': 'index.html not found'}), 404
+    # For routes without extension, return 404 (React routes are handled above)
+    print(f"Unknown route: {path}")
+    return jsonify({'error': 'Route not found'}), 404
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
