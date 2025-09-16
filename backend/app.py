@@ -126,11 +126,16 @@ def serve_static(path):
     if path.startswith('api/'):
         return jsonify({'error': 'API endpoint not found'}), 404
     
-    # Serve static files if they exist
-    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
+    # Check if it's a static file (has extension)
+    if '.' in path:
+        # Try to serve static file if it exists
+        try:
+            return send_from_directory(app.static_folder, path)
+        except:
+            # If static file not found, return 404
+            return jsonify({'error': 'File not found'}), 404
     
-    # For all other routes (React Router), serve index.html
+    # For all other routes (React Router routes), serve index.html
     return send_from_directory(app.static_folder, 'index.html')
 
 # API Health Check
