@@ -312,6 +312,15 @@ def upload_csv():
             
             records_data = []
             
+            # Smart column detection
+            def find_column(columns, possible_names):
+                columns_lower = [col.lower().strip() for col in columns]
+                for possible in possible_names:
+                    for i, col in enumerate(columns_lower):
+                        if possible.lower() in col or col in possible.lower():
+                            return columns[i]
+                return None
+            
             # Process file based on extension
             if file_ext == '.csv':
                 import csv
@@ -321,22 +330,30 @@ def upload_csv():
                 content = file.read().decode('utf-8-sig')
                 csv_reader = csv.DictReader(io.StringIO(content))
                 
-                if 'phone_number' not in csv_reader.fieldnames:
+                # Smart phone column detection
+                phone_col = find_column(csv_reader.fieldnames, 
+                    ['phone', 'mobile', 'number', 'contact', 'cell', 'telephone'])
+                
+                if not phone_col:
                     file_results.append({
                         'filename': file.filename,
                         'status': 'error',
-                        'message': 'Missing phone_number column'
+                        'message': f'No phone column found. Available: {", ".join(csv_reader.fieldnames)}'
                     })
                     continue
                 
+                # Smart name column detection
+                name_col = find_column(csv_reader.fieldnames, 
+                    ['name', 'customer', 'client', 'person', 'full_name', 'firstname'])
+                
                 seen_phones = set()
                 for row in csv_reader:
-                    phone = str(row.get('phone_number', '')).strip()
+                    phone = str(row.get(phone_col, '')).strip()
                     if phone and phone not in seen_phones:
                         seen_phones.add(phone)
                         records_data.append({
                             'phone_number': phone,
-                            'name': str(row.get('name', '')).strip()
+                            'name': str(row.get(name_col, '')).strip() if name_col else ''
                         })
             else:
                 try:
@@ -345,23 +362,31 @@ def upload_csv():
                     file.seek(0)
                     df = pd.read_excel(file)
                     
-                    if 'phone_number' not in df.columns:
+                    # Smart phone column detection
+                    phone_col = find_column(df.columns.tolist(), 
+                        ['phone', 'mobile', 'number', 'contact', 'cell', 'telephone'])
+                    
+                    if not phone_col:
                         file_results.append({
                             'filename': file.filename,
                             'status': 'error',
-                            'message': 'Missing phone_number column'
+                            'message': f'No phone column found. Available: {", ".join(df.columns)}'
                         })
                         continue
                     
-                    df = df.dropna(subset=['phone_number'])
-                    df['phone_number'] = df['phone_number'].astype(str).str.strip()
-                    df = df[df['phone_number'] != '']
-                    df = df.drop_duplicates(subset=['phone_number'])
+                    # Smart name column detection
+                    name_col = find_column(df.columns.tolist(), 
+                        ['name', 'customer', 'client', 'person', 'full_name', 'firstname'])
+                    
+                    df = df.dropna(subset=[phone_col])
+                    df[phone_col] = df[phone_col].astype(str).str.strip()
+                    df = df[df[phone_col] != '']
+                    df = df.drop_duplicates(subset=[phone_col])
                     
                     for _, row in df.iterrows():
                         records_data.append({
-                            'phone_number': str(row['phone_number']).strip(),
-                            'name': str(row.get('name', '')).strip() if pd.notna(row.get('name')) else ''
+                            'phone_number': str(row[phone_col]).strip(),
+                            'name': str(row.get(name_col, '')).strip() if name_col and pd.notna(row.get(name_col)) else ''
                         })
                 except ImportError:
                     file_results.append({

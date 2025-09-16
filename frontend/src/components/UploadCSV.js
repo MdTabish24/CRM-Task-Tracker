@@ -59,11 +59,11 @@ const UploadCSV = ({ onUploadSuccess }) => {
         <ul style={{ marginTop: '0.5rem', paddingLeft: '1.5rem' }}>
           <li><strong>Recommended:</strong> CSV format (.csv) for best compatibility</li>
           <li>Excel format (.xlsx, .xls) also supported</li>
-          <li>Must contain a 'phone_number' column</li>
-          <li>Optional 'name' column</li>
-          <li>Maximum 100,000 records</li>
+          <li><strong>Phone Column:</strong> Any column containing 'phone', 'mobile', 'number', 'contact', 'cell'</li>
+          <li><strong>Name Column:</strong> Any column containing 'name', 'customer', 'client', 'person' (optional)</li>
+          <li>Smart column detection - no need for exact column names</li>
           <li>Duplicates will be automatically removed</li>
-          <li>Records will be equally distributed among active callers</li>
+          <li>Records equally distributed per file among callers</li>
         </ul>
       </div>
 
@@ -182,10 +182,15 @@ const UploadCSV = ({ onUploadSuccess }) => {
       <div style={{ marginTop: '2rem', padding: '1rem', background: '#fff3cd', borderRadius: '4px' }}>
         <h4>Sample CSV Format:</h4>
         <pre style={{ background: 'white', padding: '0.5rem', borderRadius: '4px', fontSize: '12px' }}>
-{`phone_number,name
+{`Mobile_Number,Customer_Name
 +1234567890,John Doe
 +1234567891,Jane Smith
-+1234567892,Bob Johnson`}
+
+OR
+
+Phone,Name
++1234567890,John Doe
++1234567891,Jane Smith`}
         </pre>
       </div>
     </div>
