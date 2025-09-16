@@ -123,15 +123,50 @@ def favicon():
     print("FAVICON ROUTE HIT")
     return send_from_directory(app.static_folder, 'favicon.ico')
 
-# React Router catch-all - MUST BE AFTER API ROUTES
+# React Router routes - MUST BE AFTER API ROUTES
 @app.route('/login')
+def serve_login():
+    print(f"LOGIN ROUTE HIT: {request.path}")
+    return send_from_directory(app.static_folder, 'index.html')
+
 @app.route('/admin')
+def serve_admin():
+    print(f"ADMIN ROUTE HIT: {request.path}")
+    return send_from_directory(app.static_folder, 'index.html')
+
 @app.route('/admin/<path:subpath>')
+def serve_admin_subpaths(subpath):
+    print(f"ADMIN SUBPATH ROUTE HIT: {request.path}")
+    return send_from_directory(app.static_folder, 'index.html')
+
 @app.route('/caller')
+def serve_caller():
+    print(f"CALLER ROUTE HIT: {request.path}")
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/caller/<path:subpath>')
+def serve_caller_subpaths(subpath):
+    print(f"CALLER SUBPATH ROUTE HIT: {request.path}")
+    return send_from_directory(app.static_folder, 'index.html')
+
 @app.route('/custom')
+def serve_custom():
+    print(f"CUSTOM ROUTE HIT: {request.path}")
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/custom/<path:subpath>')
+def serve_custom_subpaths(subpath):
+    print(f"CUSTOM SUBPATH ROUTE HIT: {request.path}")
+    return send_from_directory(app.static_folder, 'index.html')
+
 @app.route('/tasks')
-def serve_react_routes():
-    print(f"REACT ROUTE HIT: {request.path}")
+def serve_tasks():
+    print(f"TASKS ROUTE HIT: {request.path}")
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/tasks/<path:subpath>')
+def serve_tasks_subpaths(subpath):
+    print(f"TASKS SUBPATH ROUTE HIT: {request.path}")
     return send_from_directory(app.static_folder, 'index.html')
 
 
