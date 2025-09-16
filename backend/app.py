@@ -119,24 +119,7 @@ def serve_frontend():
 def favicon():
     return send_from_directory(app.static_folder, 'favicon.ico')
 
-# Catch all route for React Router
-@app.route('/<path:path>')
-def serve_static(path):
-    # Skip API routes
-    if path.startswith('api/'):
-        return jsonify({'error': 'API endpoint not found'}), 404
-    
-    # Check if it's a static file (has extension)
-    if '.' in path:
-        # Try to serve static file if it exists
-        try:
-            return send_from_directory(app.static_folder, path)
-        except:
-            # If static file not found, return 404
-            return jsonify({'error': 'File not found'}), 404
-    
-    # For all other routes (React Router routes), serve index.html
-    return send_from_directory(app.static_folder, 'index.html')
+
 
 # API Health Check
 @app.route('/api/health', methods=['GET'])
@@ -1442,6 +1425,25 @@ def update_admin_credentials():
         'message': 'Admin credentials updated successfully',
         'new_username': new_username
     })
+
+# Catch all route for React Router - MUST be at the end
+@app.route('/<path:path>')
+def serve_static(path):
+    # Skip API routes
+    if path.startswith('api/'):
+        return jsonify({'error': 'API endpoint not found'}), 404
+    
+    # Check if it's a static file (has extension)
+    if '.' in path:
+        # Try to serve static file if it exists
+        try:
+            return send_from_directory(app.static_folder, path)
+        except:
+            # If static file not found, return 404
+            return jsonify({'error': 'File not found'}), 404
+    
+    # For all other routes (React Router routes), serve index.html
+    return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
