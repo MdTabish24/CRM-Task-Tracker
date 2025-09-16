@@ -122,10 +122,16 @@ def favicon():
 # Catch all route for React Router
 @app.route('/<path:path>')
 def serve_static(path):
+    # Skip API routes
+    if path.startswith('api/'):
+        return jsonify({'error': 'API endpoint not found'}), 404
+    
+    # Serve static files if they exist
     if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
-    else:
-        return send_from_directory(app.static_folder, 'index.html')
+    
+    # For all other routes (React Router), serve index.html
+    return send_from_directory(app.static_folder, 'index.html')
 
 # API Health Check
 @app.route('/api/health', methods=['GET'])
