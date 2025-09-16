@@ -101,6 +101,31 @@ class Task(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class CertifiedOfficeAssistant(db.Model):
+    __tablename__ = 'certified_office_assistant'
+    id = db.Column(db.Integer, primary_key=True)
+    record_id = db.Column(db.Integer, db.ForeignKey('records.id'), nullable=False)
+    phone_number = db.Column(db.String(20), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    caller_name = db.Column(db.String(100), nullable=False)
+    response = db.Column(db.Text)
+    processed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class OtherAdmissions(db.Model):
+    __tablename__ = 'other_admissions'
+    id = db.Column(db.Integer, primary_key=True)
+    record_id = db.Column(db.Integer, db.ForeignKey('records.id'), nullable=False)
+    phone_number = db.Column(db.String(20), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    caller_name = db.Column(db.String(100), nullable=False)
+    response = db.Column(db.Text)
+    discount_rate = db.Column(db.Float, nullable=True)
+    total_fees = db.Column(db.Float, nullable=True)
+    enrolled_course = db.Column(db.String(200), nullable=True)
+    processed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 class Admission(db.Model):
     __tablename__ = 'admissions'
     id = db.Column(db.Integer, primary_key=True)
@@ -618,6 +643,21 @@ def mark_visit(record_id):
         
         # Create admission record for confirmed visits
         if data['visit'] == 'confirmed':
+            # Get caller info
+            caller = User.query.get(record.caller_id) if record.caller_id else None
+            
+            # Add to Certified Office Assistant table
+            certified_admission = CertifiedOfficeAssistant(
+                record_id=record_id,
+                phone_number=record.phone_number,
+                name=record.name or '',
+                caller_name=caller.name if caller else 'Unknown',
+                response=record.response or '',
+                processed_by=current_user_id
+            )
+            db.session.add(certified_admission)
+            
+            # Keep old admission for compatibility
             admission = Admission(
                 record_id=record_id,
                 admission_type='confirmed',
@@ -641,7 +681,24 @@ def create_other_admission(record_id):
     record = Record.query.get_or_404(record_id)
     data = request.get_json()
     
-    # Create other admission record
+    # Get caller info
+    caller = User.query.get(record.caller_id) if record.caller_id else None
+    
+    # Add to Other Admissions table
+    other_admission = OtherAdmissions(
+        record_id=record_id,
+        phone_number=record.phone_number,
+        name=record.name or '',
+        caller_name=caller.name if caller else 'Unknown',
+        response=record.response or '',
+        discount_rate=data.get('discount_rate'),
+        total_fees=data.get('total_fees'),
+        enrolled_course=data.get('enrolled_course'),
+        processed_by=current_user_id
+    )
+    db.session.add(other_admission)
+    
+    # Create old admission record for compatibility
     admission = Admission(
         record_id=record_id,
         admission_type='other',
@@ -650,13 +707,13 @@ def create_other_admission(record_id):
         enrolled_course=data.get('enrolled_course'),
         processed_by=current_user_id
     )
+    db.session.add(admission)
     
     # Update record visit status to confirmed (since they enrolled)
     record.visit = 'confirmed'
     record.visit_by = current_user_id
     record.updated_at = datetime.utcnow()
     
-    db.session.add(admission)
     db.session.commit()
     
     return jsonify({'message': 'Other admission recorded successfully'})
@@ -1478,6 +1535,55 @@ def clear_records_only():
             'message': f'Error clearing records: {str(e)}',
             'records_deleted': 0
         }), 500
+
+@app.route('/api/admin/certified-office-assistant', methods=['GET'])
+@jwt_required()
+def get_certified_office_assistant():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'admin':
+        return jsonify({'message': 'Admin access required'}), 403
+    
+    admissions = CertifiedOfficeAssistant.query.order_by(CertifiedOfficeAssistant.created_at.desc()).all()
+    
+    return jsonify({
+        'admissions': [{
+            'id': a.id,
+            'phone_number': a.phone_number,
+            'name': a.name,
+            'caller_name': a.caller_name,
+            'response': a.response,
+            'created_at': a.created_at.isoformat()
+        } for a in admissions],
+        'total': len(admissions)
+    })
+
+@app.route('/api/admin/other-admissions-list', methods=['GET'])
+@jwt_required()
+def get_other_admissions_list():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'admin':
+        return jsonify({'message': 'Admin access required'}), 403
+    
+    admissions = OtherAdmissions.query.order_by(OtherAdmissions.created_at.desc()).all()
+    
+    return jsonify({
+        'admissions': [{
+            'id': a.id,
+            'phone_number': a.phone_number,
+            'name': a.name,
+            'caller_name': a.caller_name,
+            'response': a.response,
+            'discount_rate': a.discount_rate,
+            'total_fees': a.total_fees,
+            'enrolled_course': a.enrolled_course,
+            'created_at': a.created_at.isoformat()
+        } for a in admissions],
+        'total': len(admissions)
+    })
 
 # Delete Old Admin
 @app.route('/api/admin/delete-old-admin', methods=['POST'])
