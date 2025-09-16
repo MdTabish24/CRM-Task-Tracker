@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import api from '../utils/api';
 
 const UploadCSV = ({ onUploadSuccess }) => {
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    setFile(selectedFile);
+    const selectedFiles = Array.from(e.target.files);
+    setFiles(selectedFiles);
     setResult(null);
     setError('');
   };
@@ -17,8 +17,8 @@ const UploadCSV = ({ onUploadSuccess }) => {
   const handleUpload = async (e) => {
     e.preventDefault();
     
-    if (!file) {
-      setError('Please select a file');
+    if (files.length === 0) {
+      setError('Please select at least one file');
       return;
     }
 
@@ -26,7 +26,9 @@ const UploadCSV = ({ onUploadSuccess }) => {
     setError('');
 
     const formData = new FormData();
-    formData.append('file', file);
+    files.forEach(file => {
+      formData.append('files', file);
+    });
 
     try {
       const response = await api.post('/admin/upload', formData, {
@@ -36,7 +38,7 @@ const UploadCSV = ({ onUploadSuccess }) => {
       });
 
       setResult(response.data);
-      setFile(null);
+      setFiles([]);
       if (onUploadSuccess) onUploadSuccess();
       
       // Reset file input
@@ -50,7 +52,7 @@ const UploadCSV = ({ onUploadSuccess }) => {
 
   return (
     <div className="card">
-      <h2>Upload CSV/Excel File</h2>
+      <h2>Upload CSV/Excel Files</h2>
       
       <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#e8f4fd', borderRadius: '4px' }}>
         <h4>File Requirements:</h4>
@@ -85,19 +87,25 @@ const UploadCSV = ({ onUploadSuccess }) => {
 
       <form onSubmit={handleUpload}>
         <div className="form-group">
-          <label htmlFor="csvFile">Select File</label>
+          <label htmlFor="csvFile">Select Files (Multiple files supported)</label>
           <input
             type="file"
             id="csvFile"
             accept=".csv,.xlsx,.xls"
+            multiple
             onChange={handleFileChange}
             className="form-control"
           />
         </div>
 
-        {file && (
+        {files.length > 0 && (
           <div style={{ marginBottom: '1rem', padding: '0.5rem', background: '#f8f9fa', borderRadius: '4px' }}>
-            <strong>Selected:</strong> {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+            <strong>Selected {files.length} file(s):</strong>
+            <ul style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
+              {files.map((file, index) => (
+                <li key={index}>{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -127,31 +135,47 @@ const UploadCSV = ({ onUploadSuccess }) => {
               <div>
                 <strong>📊 Summary:</strong>
                 <ul style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
-                  <li>Records added: {result.records_added}</li>
-                  {result.skipped_duplicates > 0 && <li>Duplicates skipped: {result.skipped_duplicates}</li>}
-                  <li>Callers assigned: {result.callers_assigned}</li>
+                  <li>Total records added: {result.total_records_added}</li>
+                  {result.total_skipped_duplicates > 0 && <li>Duplicates skipped: {result.total_skipped_duplicates}</li>}
+                  <li>Files processed: {result.files_processed}</li>
+                  {result.files_failed > 0 && <li>Files failed: {result.files_failed}</li>}
                 </ul>
               </div>
-              {result.distribution && (
+              {result.final_distribution && (
                 <div>
-                  <strong>👥 Distribution:</strong>
+                  <strong>👥 Final Distribution:</strong>
                   <ul style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
-                    {Object.entries(result.distribution).map(([caller, count]) => (
+                    {Object.entries(result.final_distribution).map(([caller, count]) => (
                       <li key={caller}>{caller}: {count} records</li>
                     ))}
                   </ul>
                 </div>
               )}
             </div>
+            {result.file_results && (
+              <div style={{ marginTop: '1rem' }}>
+                <strong>📁 File Results:</strong>
+                <ul style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
+                  {result.file_results.map((fileResult, index) => (
+                    <li key={index} style={{ color: fileResult.status === 'success' ? '#27ae60' : '#e74c3c' }}>
+                      {fileResult.filename}: {fileResult.status === 'success' ? 
+                        `${fileResult.records_added} records added` : 
+                        fileResult.message
+                      }
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
         <button 
           type="submit" 
           className="btn btn-primary"
-          disabled={!file || uploading}
+          disabled={files.length === 0 || uploading}
         >
-          {uploading ? 'Uploading...' : 'Upload File'}
+          {uploading ? 'Uploading...' : `Upload ${files.length} File${files.length !== 1 ? 's' : ''}`}
         </button>
       </form>
 
