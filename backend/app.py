@@ -280,139 +280,166 @@ def upload_csv():
     if user.role != 'admin':
         return jsonify({'message': 'Admin access required'}), 403
     
-    if 'file' not in request.files:
-        return jsonify({'message': 'No file uploaded'}), 400
+    # Handle multiple files
+    files = request.files.getlist('files')
+    if not files or len(files) == 0:
+        return jsonify({'message': 'No files uploaded'}), 400
     
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'message': 'No file selected'}), 400
-    
-    # Validate file extension
-    allowed_extensions = ['.csv', '.xlsx', '.xls']
-    file_ext = '.' + file.filename.split('.')[-1].lower()
-    if file_ext not in allowed_extensions:
-        return jsonify({'message': 'Only CSV and Excel files are allowed'}), 400
+    # Get active callers
+    callers = User.query.filter_by(role='caller').all()
+    if not callers:
+        return jsonify({'message': 'No callers found. Please create caller users first.'}), 400
     
     try:
-        records_data = []
+        total_records_added = 0
+        total_skipped_duplicates = 0
+        file_results = []
         
-        # Process file based on extension
-        if file_ext == '.csv':
-            # Handle CSV files
-            import csv
-            import io
-            
-            # Read file content
-            file.seek(0)
-            content = file.read().decode('utf-8-sig')  # Handle BOM
-            csv_reader = csv.DictReader(io.StringIO(content))
-            
-            # Validate required column
-            if 'phone_number' not in csv_reader.fieldnames:
-                return jsonify({'message': 'CSV must contain phone_number column'}), 400
-            
-            # Process records
-            seen_phones = set()
-            for row in csv_reader:
-                phone = str(row.get('phone_number', '')).strip()
-                if phone and phone not in seen_phones:
-                    seen_phones.add(phone)
-                    records_data.append({
-                        'phone_number': phone,
-                        'name': str(row.get('name', '')).strip()
-                    })
-                    
-                    if len(records_data) >= 100000:
-                        break
-        
-        else:
-            # Handle Excel files
-            try:
-                import pandas as pd
-                
-                file.seek(0)
-                df = pd.read_excel(file)
-                
-                # Validate required column
-                if 'phone_number' not in df.columns:
-                    return jsonify({'message': 'Excel file must contain phone_number column'}), 400
-                
-                # Clean and process data
-                df = df.dropna(subset=['phone_number'])
-                df['phone_number'] = df['phone_number'].astype(str).str.strip()
-                df = df[df['phone_number'] != '']
-                df = df.drop_duplicates(subset=['phone_number']).head(100000)
-                
-                # Convert to records
-                for _, row in df.iterrows():
-                    records_data.append({
-                        'phone_number': str(row['phone_number']).strip(),
-                        'name': str(row.get('name', '')).strip() if pd.notna(row.get('name')) else ''
-                    })
-                    
-            except ImportError:
-                return jsonify({'message': 'Excel support not available. Please use CSV format.'}), 400
-            except Exception as e:
-                return jsonify({'message': f'Error reading Excel file: {str(e)}'}), 400
-        
-        if not records_data:
-            return jsonify({'message': 'No valid records found in file'}), 400
-        
-        # Get active callers
-        callers = User.query.filter_by(role='caller').all()
-        if not callers:
-            return jsonify({'message': 'No callers found. Please create caller users first.'}), 400
-        
-        # Process and save records
-        records_added = 0
-        skipped_duplicates = 0
-        
-        for index, record_data in enumerate(records_data):
-            phone_number = record_data['phone_number']
-            
-            # Check for existing record
-            existing = Record.query.filter_by(phone_number=phone_number).first()
-            if existing:
-                skipped_duplicates += 1
+        for file in files:
+            if file.filename == '':
                 continue
             
-            # Assign to caller (round-robin)
-            caller = callers[index % len(callers)]
+            # Validate file extension
+            allowed_extensions = ['.csv', '.xlsx', '.xls']
+            file_ext = '.' + file.filename.split('.')[-1].lower()
+            if file_ext not in allowed_extensions:
+                file_results.append({
+                    'filename': file.filename,
+                    'status': 'error',
+                    'message': 'Invalid file type'
+                })
+                continue
             
-            # Create new record
-            record = Record(
-                caller_id=caller.id,
-                phone_number=phone_number,
-                name=record_data['name']
-            )
-            db.session.add(record)
-            records_added += 1
+            records_data = []
+            
+            # Process file based on extension
+            if file_ext == '.csv':
+                import csv
+                import io
+                
+                file.seek(0)
+                content = file.read().decode('utf-8-sig')
+                csv_reader = csv.DictReader(io.StringIO(content))
+                
+                if 'phone_number' not in csv_reader.fieldnames:
+                    file_results.append({
+                        'filename': file.filename,
+                        'status': 'error',
+                        'message': 'Missing phone_number column'
+                    })
+                    continue
+                
+                seen_phones = set()
+                for row in csv_reader:
+                    phone = str(row.get('phone_number', '')).strip()
+                    if phone and phone not in seen_phones:
+                        seen_phones.add(phone)
+                        records_data.append({
+                            'phone_number': phone,
+                            'name': str(row.get('name', '')).strip()
+                        })
+            else:
+                try:
+                    import pandas as pd
+                    
+                    file.seek(0)
+                    df = pd.read_excel(file)
+                    
+                    if 'phone_number' not in df.columns:
+                        file_results.append({
+                            'filename': file.filename,
+                            'status': 'error',
+                            'message': 'Missing phone_number column'
+                        })
+                        continue
+                    
+                    df = df.dropna(subset=['phone_number'])
+                    df['phone_number'] = df['phone_number'].astype(str).str.strip()
+                    df = df[df['phone_number'] != '']
+                    df = df.drop_duplicates(subset=['phone_number'])
+                    
+                    for _, row in df.iterrows():
+                        records_data.append({
+                            'phone_number': str(row['phone_number']).strip(),
+                            'name': str(row.get('name', '')).strip() if pd.notna(row.get('name')) else ''
+                        })
+                except ImportError:
+                    file_results.append({
+                        'filename': file.filename,
+                        'status': 'error',
+                        'message': 'Excel support not available'
+                    })
+                    continue
+                except Exception as e:
+                    file_results.append({
+                        'filename': file.filename,
+                        'status': 'error',
+                        'message': f'Error reading file: {str(e)}'
+                    })
+                    continue
+            
+            if not records_data:
+                file_results.append({
+                    'filename': file.filename,
+                    'status': 'error',
+                    'message': 'No valid records found'
+                })
+                continue
+            
+            # Process records for this file (distribute equally among callers)
+            file_records_added = 0
+            file_skipped_duplicates = 0
+            
+            for index, record_data in enumerate(records_data):
+                phone_number = record_data['phone_number']
+                
+                # Check for existing record
+                existing = Record.query.filter_by(phone_number=phone_number).first()
+                if existing:
+                    file_skipped_duplicates += 1
+                    continue
+                
+                # Assign to caller (round-robin for this file)
+                caller = callers[index % len(callers)]
+                
+                # Create new record
+                record = Record(
+                    caller_id=caller.id,
+                    phone_number=phone_number,
+                    name=record_data['name']
+                )
+                db.session.add(record)
+                file_records_added += 1
+            
+            total_records_added += file_records_added
+            total_skipped_duplicates += file_skipped_duplicates
+            
+            file_results.append({
+                'filename': file.filename,
+                'status': 'success',
+                'records_found': len(records_data),
+                'records_added': file_records_added,
+                'skipped_duplicates': file_skipped_duplicates
+            })
         
         # Commit all changes
         db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': f'Successfully processed {len(records_data)} records',
-            'records_added': records_added,
-            'skipped_duplicates': skipped_duplicates,
-            'callers_assigned': len(callers),
-            'distribution': {caller.name: Record.query.filter_by(caller_id=caller.id).count() 
-                           for caller in callers}
+            'message': f'Processed {len(files)} files successfully',
+            'total_records_added': total_records_added,
+            'total_skipped_duplicates': total_skipped_duplicates,
+            'files_processed': len([f for f in file_results if f['status'] == 'success']),
+            'files_failed': len([f for f in file_results if f['status'] == 'error']),
+            'file_results': file_results,
+            'final_distribution': {caller.name: Record.query.filter_by(caller_id=caller.id).count() 
+                                 for caller in callers}
         })
         
     except Exception as e:
         db.session.rollback()
-        error_msg = str(e)
-        print(f"Upload error: {error_msg}")
-        
-        # Provide user-friendly error messages
-        if 'phone_number' in error_msg:
-            return jsonify({'message': 'Invalid phone number format in file'}), 400
-        elif 'encoding' in error_msg.lower():
-            return jsonify({'message': 'File encoding issue. Please save as UTF-8 CSV'}), 400
-        else:
-            return jsonify({'message': f'Error processing file: {error_msg}'}), 500
+        return jsonify({'message': f'Error processing files: {str(e)}'}), 500
 
 # Caller Routes
 @app.route('/api/caller/records', methods=['GET'])
