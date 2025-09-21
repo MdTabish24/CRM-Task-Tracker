@@ -17,6 +17,10 @@ const VisitManagement = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showAdmissionsModal, setShowAdmissionsModal] = useState(false);
   const [admissions, setAdmissions] = useState({ confirmed_admissions: [], other_admissions: [] });
+  const [showPendingFeesModal, setShowPendingFeesModal] = useState(false);
+  const [showPaidFeesModal, setShowPaidFeesModal] = useState(false);
+  const [pendingFeesStudents, setPendingFeesStudents] = useState([]);
+  const [paidFeesStudents, setPaidFeesStudents] = useState([]);
   const [otherAdmissionForm, setOtherAdmissionForm] = useState({
     discount_rate: '',
     enrolled_course: '',
@@ -119,6 +123,35 @@ const VisitManagement = () => {
     setShowAdmissionsModal(true);
   };
 
+  const fetchFeesData = async () => {
+    try {
+      const response = await api.get('/admin/other-admissions-list');
+      const students = response.data.admissions;
+      
+      const pending = students.filter(student => 
+        student.fees_paid < student.course_total_fees
+      );
+      const paid = students.filter(student => 
+        student.fees_paid >= student.course_total_fees
+      );
+      
+      setPendingFeesStudents(pending);
+      setPaidFeesStudents(paid);
+    } catch (error) {
+      console.error('Error fetching fees data:', error);
+    }
+  };
+
+  const handlePendingFeesClick = () => {
+    fetchFeesData();
+    setShowPendingFeesModal(true);
+  };
+
+  const handlePaidFeesClick = () => {
+    fetchFeesData();
+    setShowPaidFeesModal(true);
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -173,6 +206,30 @@ const VisitManagement = () => {
                 <div className="stat-content">
                   <div className="stat-number">{stats.overall_stats.total_declined}</div>
                   <div className="stat-label">Visits Declined</div>
+                </div>
+              </div>
+              <div 
+                className="stat-card pending-fees-card clickable-card"
+                onClick={handlePendingFeesClick}
+                title="Click to view pending fees students"
+              >
+                <div className="stat-icon">💰</div>
+                <div className="stat-content">
+                  <div className="stat-number">-</div>
+                  <div className="stat-label">Pending Fees Students</div>
+                  <div className="stat-sublabel">Click to manage</div>
+                </div>
+              </div>
+              <div 
+                className="stat-card paid-fees-card clickable-card"
+                onClick={handlePaidFeesClick}
+                title="Click to view fees paid students"
+              >
+                <div className="stat-icon">✅</div>
+                <div className="stat-content">
+                  <div className="stat-number">-</div>
+                  <div className="stat-label">Fees Paid Students</div>
+                  <div className="stat-sublabel">Click to view</div>
                 </div>
               </div>
             </div>
@@ -540,6 +597,96 @@ const VisitManagement = () => {
         </div>
       )}
 
+      {/* Pending Fees Modal */}
+      {showPendingFeesModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white', padding: '2rem', borderRadius: '8px',
+            width: '600px', maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3>💰 Pending Fees Students ({pendingFeesStudents.length})</h3>
+              <button onClick={() => setShowPendingFeesModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>
+                ×
+              </button>
+            </div>
+            
+            {pendingFeesStudents.length > 0 ? (
+              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                {pendingFeesStudents.map((student) => (
+                  <div key={student.id} style={{ padding: '1rem', borderBottom: '1px solid #eee', backgroundColor: '#fff3cd' }}>
+                    <div style={{ fontWeight: '500', fontSize: '16px' }}>{student.name || student.phone_number}</div>
+                    <div style={{ fontSize: '14px', color: '#666', marginTop: '0.5rem' }}>Course: {student.enrolled_course}</div>
+                    <div style={{ fontSize: '14px', color: '#666' }}>Phone: {student.phone_number}</div>
+                    <div style={{ fontSize: '14px', color: '#d63384', fontWeight: '500', marginTop: '0.5rem' }}>
+                      Paid: ₹{student.fees_paid || 0} / Total: ₹{student.course_total_fees || 0}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#d63384', fontWeight: '500' }}>
+                      Pending: ₹{(student.course_total_fees || 0) - (student.fees_paid || 0)}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>Caller: {student.caller_name}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
+                <h4>No Pending Fees!</h4>
+                <p>All students have paid their fees completely.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Paid Fees Modal */}
+      {showPaidFeesModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white', padding: '2rem', borderRadius: '8px',
+            width: '600px', maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3>✅ Fees Paid Students ({paidFeesStudents.length})</h3>
+              <button onClick={() => setShowPaidFeesModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>
+                ×
+              </button>
+            </div>
+            
+            {paidFeesStudents.length > 0 ? (
+              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                {paidFeesStudents.map((student) => (
+                  <div key={student.id} style={{ padding: '1rem', borderBottom: '1px solid #eee', backgroundColor: '#d1edff' }}>
+                    <div style={{ fontWeight: '500', fontSize: '16px' }}>{student.name || student.phone_number}</div>
+                    <div style={{ fontSize: '14px', color: '#666', marginTop: '0.5rem' }}>Course: {student.enrolled_course}</div>
+                    <div style={{ fontSize: '14px', color: '#666' }}>Phone: {student.phone_number}</div>
+                    <div style={{ fontSize: '14px', color: '#198754', fontWeight: '500', marginTop: '0.5rem' }}>
+                      ✅ Paid: ₹{student.fees_paid || 0} / Total: ₹{student.course_total_fees || 0}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>Caller: {student.caller_name}</div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>Payment: {student.payment_mode}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💰</div>
+                <h4>No Paid Students Yet</h4>
+                <p>No students have completed their fee payments.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <style>{`
         .visit-management {
           padding: 0;
@@ -598,6 +745,14 @@ const VisitManagement = () => {
           gap: 1rem;
           transition: transform 0.2s ease;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .pending-fees-card {
+          border-left: 4px solid #ffc107;
+        }
+
+        .paid-fees-card {
+          border-left: 4px solid #198754;
         }
 
         .stat-card:hover {
