@@ -705,7 +705,7 @@ def create_other_admission(record_id):
         caller_name=caller.name if caller else 'Unknown',
         response=record.response or '',
         discount_rate=data.get('discount_rate'),
-        total_fees=data.get('total_fees'),
+        total_fees=data.get('course_total_fees'),  # Use course_total_fees for total_fees
         enrolled_course=data.get('enrolled_course'),
         fees_paid=data.get('fees_paid'),
         course_total_fees=data.get('course_total_fees'),
@@ -721,7 +721,7 @@ def create_other_admission(record_id):
         record_id=record_id,
         admission_type='other',
         discount_rate=data.get('discount_rate'),
-        total_fees=data.get('total_fees'),
+        total_fees=data.get('course_total_fees'),  # Use course_total_fees for total_fees
         enrolled_course=data.get('enrolled_course'),
         processed_by=current_user_id
     )

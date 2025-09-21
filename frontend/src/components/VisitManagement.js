@@ -19,7 +19,6 @@ const VisitManagement = () => {
   const [admissions, setAdmissions] = useState({ confirmed_admissions: [], other_admissions: [] });
   const [otherAdmissionForm, setOtherAdmissionForm] = useState({
     discount_rate: '',
-    total_fees: '',
     enrolled_course: '',
     fees_paid: '',
     course_total_fees: '',
@@ -85,7 +84,6 @@ const VisitManagement = () => {
     setShowOtherAdmissionModal(true);
     setOtherAdmissionForm({ 
       discount_rate: '', 
-      total_fees: '', 
       enrolled_course: '',
       fees_paid: '',
       course_total_fees: '',
@@ -390,29 +388,16 @@ const VisitManagement = () => {
           }}>
             <h3>🎓 Other Admission - {selectedRecord?.name || selectedRecord?.phone_number}</h3>
             <form onSubmit={submitOtherAdmission}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                <div className="form-group">
-                  <label>Discount Rate (%)</label>
-                  <input
-                    type="number"
-                    value={otherAdmissionForm.discount_rate}
-                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, discount_rate: e.target.value})}
-                    className="form-control"
-                    placeholder="Enter discount percentage..."
-                    min="0" max="100"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Total Fees</label>
-                  <input
-                    type="number"
-                    value={otherAdmissionForm.total_fees}
-                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, total_fees: e.target.value})}
-                    className="form-control"
-                    placeholder="Enter total fees..."
-                    min="0"
-                  />
-                </div>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label>Discount Rate (%)</label>
+                <input
+                  type="number"
+                  value={otherAdmissionForm.discount_rate}
+                  onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, discount_rate: e.target.value})}
+                  className="form-control"
+                  placeholder="Enter discount percentage..."
+                  min="0" max="100"
+                />
               </div>
               
               <div className="form-group" style={{ marginBottom: '1rem' }}>
