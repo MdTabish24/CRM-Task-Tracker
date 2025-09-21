@@ -123,13 +123,21 @@ class OtherAdmissions(db.Model):
     discount_rate = db.Column(db.Float, nullable=True)
     total_fees = db.Column(db.Float, nullable=True)
     enrolled_course = db.Column(db.String(200), nullable=True)
-    fees_paid = db.Column(db.Integer, nullable=True)
-    course_total_fees = db.Column(db.Integer, nullable=True)
-    course_start_date = db.Column(db.DateTime, nullable=True)
-    course_end_date = db.Column(db.DateTime, nullable=True)
-    payment_mode = db.Column(db.String(100), nullable=True)
     processed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Store additional data in response field as JSON for now
+    def set_additional_data(self, fees_paid=None, course_total_fees=None, 
+                           course_start_date=None, course_end_date=None, payment_mode=None):
+        import json
+        additional_data = {
+            'fees_paid': fees_paid,
+            'course_total_fees': course_total_fees,
+            'course_start_date': course_start_date.isoformat() if course_start_date else None,
+            'course_end_date': course_end_date.isoformat() if course_end_date else None,
+            'payment_mode': payment_mode
+        }
+        self.response = f"{self.response}\n\nAdditional Data: {json.dumps(additional_data)}"
 
 class Admission(db.Model):
     __tablename__ = 'admissions'
@@ -705,14 +713,18 @@ def create_other_admission(record_id):
         caller_name=caller.name if caller else 'Unknown',
         response=record.response or '',
         discount_rate=data.get('discount_rate'),
-        total_fees=data.get('course_total_fees'),  # Use course_total_fees for total_fees
+        total_fees=data.get('course_total_fees'),
         enrolled_course=data.get('enrolled_course'),
+        processed_by=current_user_id
+    )
+    
+    # Store additional data
+    other_admission.set_additional_data(
         fees_paid=data.get('fees_paid'),
         course_total_fees=data.get('course_total_fees'),
         course_start_date=course_start_date,
         course_end_date=course_end_date,
-        payment_mode=data.get('payment_mode'),
-        processed_by=current_user_id
+        payment_mode=data.get('payment_mode')
     )
     db.session.add(other_admission)
     
