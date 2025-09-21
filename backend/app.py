@@ -1577,6 +1577,21 @@ def get_certified_office_assistant():
         'total': len(admissions)
     })
 
+@app.route('/api/admin/other-admission/<int:admission_id>', methods=['DELETE'])
+@jwt_required()
+def delete_other_admission(admission_id):
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'admin':
+        return jsonify({'message': 'Admin access required'}), 403
+    
+    admission = OtherAdmissions.query.get_or_404(admission_id)
+    db.session.delete(admission)
+    db.session.commit()
+    
+    return jsonify({'message': 'Admission deleted successfully'})
+
 @app.route('/api/admin/other-admissions-list', methods=['GET'])
 @jwt_required()
 def get_other_admissions_list():

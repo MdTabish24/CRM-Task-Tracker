@@ -21,6 +21,8 @@ const VisitManagement = () => {
   const [showPaidFeesModal, setShowPaidFeesModal] = useState(false);
   const [pendingFeesStudents, setPendingFeesStudents] = useState([]);
   const [paidFeesStudents, setPaidFeesStudents] = useState([]);
+  const [pendingFeesSearch, setPendingFeesSearch] = useState('');
+  const [paidFeesSearch, setPaidFeesSearch] = useState('');
   const [otherAdmissionForm, setOtherAdmissionForm] = useState({
     discount_rate: '',
     enrolled_course: '',
@@ -141,6 +143,29 @@ const VisitManagement = () => {
       console.error('Error fetching fees data:', error);
     }
   };
+
+  const deleteAdmission = async (admissionId) => {
+    if (window.confirm('Are you sure you want to delete this record?')) {
+      try {
+        await api.delete(`/admin/other-admission/${admissionId}`);
+        fetchFeesData(); // Refresh data
+      } catch (error) {
+        console.error('Error deleting admission:', error);
+      }
+    }
+  };
+
+  const filteredPendingStudents = pendingFeesStudents.filter(student =>
+    student.name?.toLowerCase().includes(pendingFeesSearch.toLowerCase()) ||
+    student.phone_number?.includes(pendingFeesSearch) ||
+    student.enrolled_course?.toLowerCase().includes(pendingFeesSearch.toLowerCase())
+  );
+
+  const filteredPaidStudents = paidFeesStudents.filter(student =>
+    student.name?.toLowerCase().includes(paidFeesSearch.toLowerCase()) ||
+    student.phone_number?.includes(paidFeesSearch) ||
+    student.enrolled_course?.toLowerCase().includes(paidFeesSearch.toLowerCase())
+  );
 
   const handlePendingFeesClick = () => {
     fetchFeesData();
@@ -609,15 +634,25 @@ const VisitManagement = () => {
             width: '600px', maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3>💰 Pending Fees Students ({pendingFeesStudents.length})</h3>
+              <h3>💰 Pending Fees Students ({filteredPendingStudents.length})</h3>
               <button onClick={() => setShowPendingFeesModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>
                 ×
               </button>
             </div>
             
-            {pendingFeesStudents.length > 0 ? (
-              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                {pendingFeesStudents.map((student) => (
+            <div style={{ marginBottom: '1rem' }}>
+              <input
+                type="text"
+                placeholder="Search by name, phone, or course..."
+                value={pendingFeesSearch}
+                onChange={(e) => setPendingFeesSearch(e.target.value)}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+              />
+            </div>
+            
+            {filteredPendingStudents.length > 0 ? (
+              <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px' }}>
+                {filteredPendingStudents.map((student) => (
                   <div key={student.id} style={{ padding: '1rem', borderBottom: '1px solid #eee', backgroundColor: '#fff3cd' }}>
                     <div style={{ fontWeight: '500', fontSize: '16px' }}>{student.name || student.phone_number}</div>
                     <div style={{ fontSize: '14px', color: '#666', marginTop: '0.5rem' }}>Course: {student.enrolled_course}</div>
@@ -629,6 +664,16 @@ const VisitManagement = () => {
                       Pending: ₹{(student.course_total_fees || 0) - (student.fees_paid || 0)}
                     </div>
                     <div style={{ fontSize: '12px', color: '#666' }}>Caller: {student.caller_name}</div>
+                    <button
+                      onClick={() => deleteAdmission(student.id)}
+                      style={{ 
+                        marginTop: '0.5rem', padding: '0.25rem 0.5rem', 
+                        background: '#dc3545', color: 'white', border: 'none', 
+                        borderRadius: '4px', fontSize: '12px', cursor: 'pointer'
+                      }}
+                    >
+                      🗑️ Delete
+                    </button>
                   </div>
                 ))}
               </div>
@@ -655,15 +700,25 @@ const VisitManagement = () => {
             width: '600px', maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3>✅ Fees Paid Students ({paidFeesStudents.length})</h3>
+              <h3>✅ Fees Paid Students ({filteredPaidStudents.length})</h3>
               <button onClick={() => setShowPaidFeesModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>
                 ×
               </button>
             </div>
             
-            {paidFeesStudents.length > 0 ? (
-              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                {paidFeesStudents.map((student) => (
+            <div style={{ marginBottom: '1rem' }}>
+              <input
+                type="text"
+                placeholder="Search by name, phone, or course..."
+                value={paidFeesSearch}
+                onChange={(e) => setPaidFeesSearch(e.target.value)}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+              />
+            </div>
+            
+            {filteredPaidStudents.length > 0 ? (
+              <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px' }}>
+                {filteredPaidStudents.map((student) => (
                   <div key={student.id} style={{ padding: '1rem', borderBottom: '1px solid #eee', backgroundColor: '#d1edff' }}>
                     <div style={{ fontWeight: '500', fontSize: '16px' }}>{student.name || student.phone_number}</div>
                     <div style={{ fontSize: '14px', color: '#666', marginTop: '0.5rem' }}>Course: {student.enrolled_course}</div>
@@ -673,6 +728,16 @@ const VisitManagement = () => {
                     </div>
                     <div style={{ fontSize: '12px', color: '#666' }}>Caller: {student.caller_name}</div>
                     <div style={{ fontSize: '12px', color: '#666' }}>Payment: {student.payment_mode}</div>
+                    <button
+                      onClick={() => deleteAdmission(student.id)}
+                      style={{ 
+                        marginTop: '0.5rem', padding: '0.25rem 0.5rem', 
+                        background: '#dc3545', color: 'white', border: 'none', 
+                        borderRadius: '4px', fontSize: '12px', cursor: 'pointer'
+                      }}
+                    >
+                      🗑️ Delete
+                    </button>
                   </div>
                 ))}
               </div>
