@@ -20,7 +20,12 @@ const VisitManagement = () => {
   const [otherAdmissionForm, setOtherAdmissionForm] = useState({
     discount_rate: '',
     total_fees: '',
-    enrolled_course: ''
+    enrolled_course: '',
+    fees_paid: '',
+    course_total_fees: '',
+    course_start_date: '',
+    course_end_date: '',
+    payment_mode: ''
   });
 
   useEffect(() => {
@@ -78,7 +83,16 @@ const VisitManagement = () => {
   const handleOtherAdmission = (record) => {
     setSelectedRecord(record);
     setShowOtherAdmissionModal(true);
-    setOtherAdmissionForm({ discount_rate: '', total_fees: '', enrolled_course: '' });
+    setOtherAdmissionForm({ 
+      discount_rate: '', 
+      total_fees: '', 
+      enrolled_course: '',
+      fees_paid: '',
+      course_total_fees: '',
+      course_start_date: '',
+      course_end_date: '',
+      payment_mode: ''
+    });
   };
 
   const submitOtherAdmission = async (e) => {
@@ -372,33 +386,36 @@ const VisitManagement = () => {
         }}>
           <div style={{
             backgroundColor: 'white', padding: '2rem', borderRadius: '8px',
-            width: '500px', maxWidth: '90vw'
+            width: '700px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto'
           }}>
             <h3>🎓 Other Admission - {selectedRecord?.name || selectedRecord?.phone_number}</h3>
             <form onSubmit={submitOtherAdmission}>
-              <div className="form-group">
-                <label>Discount Rate (%)</label>
-                <input
-                  type="number"
-                  value={otherAdmissionForm.discount_rate}
-                  onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, discount_rate: e.target.value})}
-                  className="form-control"
-                  placeholder="Enter discount percentage..."
-                  min="0" max="100"
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label>Discount Rate (%)</label>
+                  <input
+                    type="number"
+                    value={otherAdmissionForm.discount_rate}
+                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, discount_rate: e.target.value})}
+                    className="form-control"
+                    placeholder="Enter discount percentage..."
+                    min="0" max="100"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Total Fees</label>
+                  <input
+                    type="number"
+                    value={otherAdmissionForm.total_fees}
+                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, total_fees: e.target.value})}
+                    className="form-control"
+                    placeholder="Enter total fees..."
+                    min="0"
+                  />
+                </div>
               </div>
-              <div className="form-group">
-                <label>Total Fees</label>
-                <input
-                  type="number"
-                  value={otherAdmissionForm.total_fees}
-                  onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, total_fees: e.target.value})}
-                  className="form-control"
-                  placeholder="Enter total fees..."
-                  min="0"
-                />
-              </div>
-              <div className="form-group">
+              
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label>Enrolled Course</label>
                 <input
                   type="text"
@@ -407,6 +424,63 @@ const VisitManagement = () => {
                   className="form-control"
                   placeholder="Enter course name..."
                   required
+                />
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label>Fees Paid by Student</label>
+                  <input
+                    type="number"
+                    value={otherAdmissionForm.fees_paid}
+                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, fees_paid: e.target.value})}
+                    className="form-control"
+                    placeholder="Amount paid by student..."
+                    min="0"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Course Total Fees</label>
+                  <input
+                    type="number"
+                    value={otherAdmissionForm.course_total_fees}
+                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, course_total_fees: e.target.value})}
+                    className="form-control"
+                    placeholder="Total course fees..."
+                    min="0"
+                  />
+                </div>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label>Course Start Date</label>
+                  <input
+                    type="datetime-local"
+                    value={otherAdmissionForm.course_start_date}
+                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, course_start_date: e.target.value})}
+                    className="form-control"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Course End Date</label>
+                  <input
+                    type="datetime-local"
+                    value={otherAdmissionForm.course_end_date}
+                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, course_end_date: e.target.value})}
+                    className="form-control"
+                  />
+                </div>
+              </div>
+              
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label>Payment Mode</label>
+                <input
+                  type="text"
+                  value={otherAdmissionForm.payment_mode}
+                  onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, payment_mode: e.target.value})}
+                  className="form-control"
+                  placeholder="e.g., Cash, Card, UPI, Bank Transfer..."
                 />
               </div>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>

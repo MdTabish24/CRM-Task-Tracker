@@ -15,7 +15,12 @@ const VisitedRecords = ({ onClose, onAdmissionCreated }) => {
   const [otherAdmissionForm, setOtherAdmissionForm] = useState({
     discount_rate: '',
     total_fees: '',
-    enrolled_course: ''
+    enrolled_course: '',
+    fees_paid: '',
+    course_total_fees: '',
+    course_start_date: '',
+    course_end_date: '',
+    payment_mode: ''
   });
 
   useEffect(() => {
@@ -62,7 +67,16 @@ const VisitedRecords = ({ onClose, onAdmissionCreated }) => {
   const handleOtherAdmission = (record) => {
     setSelectedRecord(record);
     setShowOtherAdmissionModal(true);
-    setOtherAdmissionForm({ discount_rate: '', total_fees: '', enrolled_course: '' });
+    setOtherAdmissionForm({ 
+      discount_rate: '', 
+      total_fees: '', 
+      enrolled_course: '',
+      fees_paid: '',
+      course_total_fees: '',
+      course_start_date: '',
+      course_end_date: '',
+      payment_mode: ''
+    });
   };
 
   const submitOtherAdmission = async (e) => {
@@ -173,10 +187,17 @@ const VisitedRecords = ({ onClose, onAdmissionCreated }) => {
                           <div className="action-buttons">
                             <button
                               onClick={() => updateVisitStatus(record.id, 'confirmed')}
-                              className="btn btn-confirmed"
-                              title="Confirm Visit - Customer Converted"
+                              className="btn btn-office-assistant"
+                              title="Office Assistant Course - Direct Confirmation"
                             >
-                              ✅ Confirmed
+                              💼 Office Assistant
+                            </button>
+                            <button
+                              onClick={() => handleOtherAdmission(record)}
+                              className="btn btn-other-admission"
+                              title="Other Course Admission"
+                            >
+                              🎓 Other Course
                             </button>
                             <button
                               onClick={() => updateVisitStatus(record.id, 'declined')}
@@ -184,13 +205,6 @@ const VisitedRecords = ({ onClose, onAdmissionCreated }) => {
                               title="Decline Visit - Customer Not Interested"
                             >
                               ❌ Declined
-                            </button>
-                            <button
-                              onClick={() => handleOtherAdmission(record)}
-                              className="btn btn-other-admission"
-                              title="Other Admission"
-                            >
-                              🎓 Other Admission
                             </button>
                           </div>
                         </td>
@@ -242,32 +256,35 @@ const VisitedRecords = ({ onClose, onAdmissionCreated }) => {
         }}>
           <div style={{
             backgroundColor: 'white', padding: '2rem', borderRadius: '8px',
-            width: '500px', maxWidth: '90vw'
+            width: '700px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto'
           }}>
             <h3>🎓 Other Admission - {selectedRecord?.name || selectedRecord?.phone_number}</h3>
             <form onSubmit={submitOtherAdmission}>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Discount Rate (%)</label>
-                <input
-                  type="number"
-                  value={otherAdmissionForm.discount_rate}
-                  onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, discount_rate: e.target.value})}
-                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
-                  placeholder="Enter discount percentage..."
-                  min="0" max="100"
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Discount Rate (%)</label>
+                  <input
+                    type="number"
+                    value={otherAdmissionForm.discount_rate}
+                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, discount_rate: e.target.value})}
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                    placeholder="Enter discount percentage..."
+                    min="0" max="100"
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Total Fees</label>
+                  <input
+                    type="number"
+                    value={otherAdmissionForm.total_fees}
+                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, total_fees: e.target.value})}
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                    placeholder="Enter total fees..."
+                    min="0"
+                  />
+                </div>
               </div>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Total Fees</label>
-                <input
-                  type="number"
-                  value={otherAdmissionForm.total_fees}
-                  onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, total_fees: e.target.value})}
-                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
-                  placeholder="Enter total fees..."
-                  min="0"
-                />
-              </div>
+              
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Enrolled Course</label>
                 <input
@@ -277,6 +294,63 @@ const VisitedRecords = ({ onClose, onAdmissionCreated }) => {
                   style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
                   placeholder="Enter course name..."
                   required
+                />
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Fees Paid by Student</label>
+                  <input
+                    type="number"
+                    value={otherAdmissionForm.fees_paid}
+                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, fees_paid: e.target.value})}
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                    placeholder="Amount paid by student..."
+                    min="0"
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Course Total Fees</label>
+                  <input
+                    type="number"
+                    value={otherAdmissionForm.course_total_fees}
+                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, course_total_fees: e.target.value})}
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                    placeholder="Total course fees..."
+                    min="0"
+                  />
+                </div>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Course Start Date</label>
+                  <input
+                    type="datetime-local"
+                    value={otherAdmissionForm.course_start_date}
+                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, course_start_date: e.target.value})}
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Course End Date</label>
+                  <input
+                    type="datetime-local"
+                    value={otherAdmissionForm.course_end_date}
+                    onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, course_end_date: e.target.value})}
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                  />
+                </div>
+              </div>
+              
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Payment Mode</label>
+                <input
+                  type="text"
+                  value={otherAdmissionForm.payment_mode}
+                  onChange={(e) => setOtherAdmissionForm({...otherAdmissionForm, payment_mode: e.target.value})}
+                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                  placeholder="e.g., Cash, Card, UPI, Bank Transfer..."
                 />
               </div>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
@@ -518,14 +592,14 @@ const VisitedRecords = ({ onClose, onAdmissionCreated }) => {
           flex-wrap: wrap;
         }
 
-        .btn-confirmed {
+        .btn-office-assistant {
           background: #27ae60;
           color: white;
           padding: 0.5rem 0.75rem;
           font-size: 12px;
         }
 
-        .btn-confirmed:hover {
+        .btn-office-assistant:hover {
           background: #229954;
         }
 
@@ -541,14 +615,14 @@ const VisitedRecords = ({ onClose, onAdmissionCreated }) => {
         }
 
         .btn-other-admission {
-          background: #f39c12;
+          background: #3498db;
           color: white;
           padding: 0.5rem 0.75rem;
           font-size: 12px;
         }
 
         .btn-other-admission:hover {
-          background: #e67e22;
+          background: #2980b9;
         }
 
         .no-records {

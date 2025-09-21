@@ -123,6 +123,11 @@ class OtherAdmissions(db.Model):
     discount_rate = db.Column(db.Float, nullable=True)
     total_fees = db.Column(db.Float, nullable=True)
     enrolled_course = db.Column(db.String(200), nullable=True)
+    fees_paid = db.Column(db.Integer, nullable=True)
+    course_total_fees = db.Column(db.Integer, nullable=True)
+    course_start_date = db.Column(db.DateTime, nullable=True)
+    course_end_date = db.Column(db.DateTime, nullable=True)
+    payment_mode = db.Column(db.String(100), nullable=True)
     processed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -684,6 +689,14 @@ def create_other_admission(record_id):
     # Get caller info
     caller = User.query.get(record.caller_id) if record.caller_id else None
     
+    # Parse dates if provided
+    course_start_date = None
+    course_end_date = None
+    if data.get('course_start_date'):
+        course_start_date = datetime.fromisoformat(data['course_start_date'])
+    if data.get('course_end_date'):
+        course_end_date = datetime.fromisoformat(data['course_end_date'])
+    
     # Add to Other Admissions table
     other_admission = OtherAdmissions(
         record_id=record_id,
@@ -694,6 +707,11 @@ def create_other_admission(record_id):
         discount_rate=data.get('discount_rate'),
         total_fees=data.get('total_fees'),
         enrolled_course=data.get('enrolled_course'),
+        fees_paid=data.get('fees_paid'),
+        course_total_fees=data.get('course_total_fees'),
+        course_start_date=course_start_date,
+        course_end_date=course_end_date,
+        payment_mode=data.get('payment_mode'),
         processed_by=current_user_id
     )
     db.session.add(other_admission)
@@ -1580,6 +1598,11 @@ def get_other_admissions_list():
             'discount_rate': a.discount_rate,
             'total_fees': a.total_fees,
             'enrolled_course': a.enrolled_course,
+            'fees_paid': a.fees_paid,
+            'course_total_fees': a.course_total_fees,
+            'course_start_date': a.course_start_date.isoformat() if a.course_start_date else None,
+            'course_end_date': a.course_end_date.isoformat() if a.course_end_date else None,
+            'payment_mode': a.payment_mode,
             'created_at': a.created_at.isoformat()
         } for a in admissions],
         'total': len(admissions)
