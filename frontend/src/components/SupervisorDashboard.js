@@ -12,10 +12,9 @@ const SupervisorDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [statsRes, transRes, admissionsRes] = await Promise.all([
+      const [statsRes, transRes] = await Promise.all([
         api.get('/admin/visit-stats'),
-        api.get('/admin/transactions'),
-        api.get('/admin/other-admissions-list')
+        api.get('/admin/transactions')
       ]);
       
       setStats(statsRes.data);
@@ -125,15 +124,24 @@ const SupervisorDashboard = () => {
             <div className="summary-card earned">
               <div className="card-icon">📈</div>
               <div className="card-content">
-                <div className="card-amount">₹{transactions.reduce((sum, t) => t.type === 'earn' ? sum + t.amount : sum, 0)}</div>
+                <div className="card-amount">₹{transactions.reduce((sum, t) => t.type === 'earn' ? sum + parseInt(t.amount) : sum, 0)}</div>
                 <div className="card-label">Total Earned</div>
               </div>
             </div>
             <div className="summary-card spent">
               <div className="card-icon">📉</div>
               <div className="card-content">
-                <div className="card-amount">₹{transactions.reduce((sum, t) => t.type === 'spend' ? sum + t.amount : sum, 0)}</div>
+                <div className="card-amount">₹{transactions.reduce((sum, t) => t.type === 'spend' ? sum + parseInt(t.amount) : sum, 0)}</div>
                 <div className="card-label">Total Spent</div>
+              </div>
+            </div>
+            <div className="summary-card profit">
+              <div className="card-icon">💰</div>
+              <div className="card-content">
+                <div className="card-amount profit-amount">
+                  ₹{transactions.reduce((sum, t) => t.type === 'earn' ? sum + parseInt(t.amount) : sum - parseInt(t.amount), 0)}
+                </div>
+                <div className="card-label">Net Profit</div>
               </div>
             </div>
           </div>
@@ -302,9 +310,18 @@ const SupervisorDashboard = () => {
 
         .finance-summary {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: 1fr 1fr 1fr;
           gap: 1rem;
           margin-bottom: 2rem;
+        }
+
+        .summary-card.profit {
+          background: #e3f2fd;
+          border-left: 4px solid #2196f3;
+        }
+
+        .profit-amount {
+          color: #2196f3;
         }
 
         .summary-card {

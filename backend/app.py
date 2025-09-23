@@ -929,8 +929,8 @@ def get_visit_stats():
     current_user_id = int(get_jwt_identity())
     user = User.query.get(current_user_id)
     
-    if user.role != 'admin':
-        return jsonify({'message': 'Admin access required'}), 403
+    if user.role not in ['admin', 'supervisor']:
+        return jsonify({'message': 'Admin or Supervisor access required'}), 403
     
     # Get visit statistics by caller
     callers = User.query.filter_by(role='caller').all()
@@ -1673,14 +1673,32 @@ def get_transactions():
     student_fees = db.session.query(db.func.sum(OtherAdmissions.fees_paid)).scalar() or 0
     total_earned += student_fees
     
-    return jsonify({
-        'transactions': [{
+    # Add student fees as automatic transactions in response
+    if student_fees > 0:
+        transactions_list = [{
+            'id': 'auto_fees',
+            'type': 'earn',
+            'amount': student_fees,
+            'description': 'Student Course Fees (Auto)',
+            'created_at': datetime.utcnow().isoformat()
+        }] + [{
             'id': t.id,
             'type': t.type,
             'amount': t.amount,
             'description': t.description,
             'created_at': t.created_at.isoformat()
-        } for t in transactions],
+        } for t in transactions]
+    else:
+        transactions_list = [{
+            'id': t.id,
+            'type': t.type,
+            'amount': t.amount,
+            'description': t.description,
+            'created_at': t.created_at.isoformat()
+        } for t in transactions]
+    
+    return jsonify({
+        'transactions': transactions_list,
         'total_earned': total_earned,
         'total_spent': total_spent
     })
@@ -1714,8 +1732,8 @@ def get_other_admissions_list():
     current_user_id = int(get_jwt_identity())
     user = User.query.get(current_user_id)
     
-    if user.role != 'admin':
-        return jsonify({'message': 'Admin access required'}), 403
+    if user.role not in ['admin', 'supervisor']:
+        return jsonify({'message': 'Admin or Supervisor access required'}), 403
     
     admissions = OtherAdmissions.query.order_by(OtherAdmissions.created_at.desc()).all()
     
