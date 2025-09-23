@@ -1577,6 +1577,40 @@ def get_certified_office_assistant():
         'total': len(admissions)
     })
 
+@app.route('/api/admin/other-admission/<int:admission_id>', methods=['PUT'])
+@jwt_required()
+def update_other_admission(admission_id):
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'admin':
+        return jsonify({'message': 'Admin access required'}), 403
+    
+    admission = OtherAdmissions.query.get_or_404(admission_id)
+    data = request.get_json()
+    
+    # Parse dates if provided
+    course_start_date = None
+    course_end_date = None
+    if data.get('course_start_date'):
+        course_start_date = datetime.fromisoformat(data['course_start_date'])
+    if data.get('course_end_date'):
+        course_end_date = datetime.fromisoformat(data['course_end_date'])
+    
+    # Update fields
+    admission.discount_rate = data.get('discount_rate')
+    admission.total_fees = data.get('course_total_fees')
+    admission.enrolled_course = data.get('enrolled_course')
+    admission.fees_paid = data.get('fees_paid')
+    admission.course_total_fees = data.get('course_total_fees')
+    admission.course_start_date = course_start_date
+    admission.course_end_date = course_end_date
+    admission.payment_mode = data.get('payment_mode')
+    
+    db.session.commit()
+    
+    return jsonify({'message': 'Admission updated successfully'})
+
 @app.route('/api/admin/other-admission/<int:admission_id>', methods=['DELETE'])
 @jwt_required()
 def delete_other_admission(admission_id):

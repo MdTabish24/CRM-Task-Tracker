@@ -23,6 +23,9 @@ const VisitManagement = () => {
   const [paidFeesStudents, setPaidFeesStudents] = useState([]);
   const [pendingFeesSearch, setPendingFeesSearch] = useState('');
   const [paidFeesSearch, setPaidFeesSearch] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [editForm, setEditForm] = useState({});
   const [otherAdmissionForm, setOtherAdmissionForm] = useState({
     discount_rate: '',
     enrolled_course: '',
@@ -152,6 +155,31 @@ const VisitManagement = () => {
       } catch (error) {
         console.error('Error deleting admission:', error);
       }
+    }
+  };
+
+  const editAdmission = (student) => {
+    setEditingStudent(student);
+    setEditForm({
+      discount_rate: student.discount_rate || '',
+      enrolled_course: student.enrolled_course || '',
+      fees_paid: student.fees_paid || '',
+      course_total_fees: student.course_total_fees || '',
+      course_start_date: student.course_start_date ? student.course_start_date.slice(0, 16) : '',
+      course_end_date: student.course_end_date ? student.course_end_date.slice(0, 16) : '',
+      payment_mode: student.payment_mode || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const updateAdmission = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/admin/other-admission/${editingStudent.id}`, editForm);
+      setShowEditModal(false);
+      fetchFeesData(); // Refresh data
+    } catch (error) {
+      console.error('Error updating admission:', error);
     }
   };
 
@@ -664,16 +692,26 @@ const VisitManagement = () => {
                       Pending: ₹{(student.course_total_fees || 0) - (student.fees_paid || 0)}
                     </div>
                     <div style={{ fontSize: '12px', color: '#666' }}>Caller: {student.caller_name}</div>
-                    <button
-                      onClick={() => deleteAdmission(student.id)}
-                      style={{ 
-                        marginTop: '0.5rem', padding: '0.25rem 0.5rem', 
-                        background: '#dc3545', color: 'white', border: 'none', 
-                        borderRadius: '4px', fontSize: '12px', cursor: 'pointer'
-                      }}
-                    >
-                      🗑️ Delete
-                    </button>
+                    <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => editAdmission(student)}
+                        style={{ 
+                          padding: '0.25rem 0.5rem', background: '#0d6efd', color: 'white', 
+                          border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer'
+                        }}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => deleteAdmission(student.id)}
+                        style={{ 
+                          padding: '0.25rem 0.5rem', background: '#dc3545', color: 'white', 
+                          border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer'
+                        }}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -728,16 +766,26 @@ const VisitManagement = () => {
                     </div>
                     <div style={{ fontSize: '12px', color: '#666' }}>Caller: {student.caller_name}</div>
                     <div style={{ fontSize: '12px', color: '#666' }}>Payment: {student.payment_mode}</div>
-                    <button
-                      onClick={() => deleteAdmission(student.id)}
-                      style={{ 
-                        marginTop: '0.5rem', padding: '0.25rem 0.5rem', 
-                        background: '#dc3545', color: 'white', border: 'none', 
-                        borderRadius: '4px', fontSize: '12px', cursor: 'pointer'
-                      }}
-                    >
-                      🗑️ Delete
-                    </button>
+                    <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => editAdmission(student)}
+                        style={{ 
+                          padding: '0.25rem 0.5rem', background: '#0d6efd', color: 'white', 
+                          border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer'
+                        }}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => deleteAdmission(student.id)}
+                        style={{ 
+                          padding: '0.25rem 0.5rem', background: '#dc3545', color: 'white', 
+                          border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer'
+                        }}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -748,6 +796,113 @@ const VisitManagement = () => {
                 <p>No students have completed their fee payments.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1001
+        }}>
+          <div style={{
+            backgroundColor: 'white', padding: '2rem', borderRadius: '8px',
+            width: '700px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto'
+          }}>
+            <h3>✏️ Edit Record - {editingStudent?.name || editingStudent?.phone_number}</h3>
+            <form onSubmit={updateAdmission}>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label>Discount Rate (%)</label>
+                <input
+                  type="number"
+                  value={editForm.discount_rate}
+                  onChange={(e) => setEditForm({...editForm, discount_rate: e.target.value})}
+                  className="form-control"
+                  placeholder="Enter discount percentage..."
+                  min="0" max="100"
+                />
+              </div>
+              
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label>Enrolled Course</label>
+                <input
+                  type="text"
+                  value={editForm.enrolled_course}
+                  onChange={(e) => setEditForm({...editForm, enrolled_course: e.target.value})}
+                  className="form-control"
+                  placeholder="Enter course name..."
+                  required
+                />
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label>Fees Paid by Student</label>
+                  <input
+                    type="number"
+                    value={editForm.fees_paid}
+                    onChange={(e) => setEditForm({...editForm, fees_paid: e.target.value})}
+                    className="form-control"
+                    placeholder="Amount paid by student..."
+                    min="0"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Course Total Fees</label>
+                  <input
+                    type="number"
+                    value={editForm.course_total_fees}
+                    onChange={(e) => setEditForm({...editForm, course_total_fees: e.target.value})}
+                    className="form-control"
+                    placeholder="Total course fees..."
+                    min="0"
+                  />
+                </div>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label>Course Start Date</label>
+                  <input
+                    type="datetime-local"
+                    value={editForm.course_start_date}
+                    onChange={(e) => setEditForm({...editForm, course_start_date: e.target.value})}
+                    className="form-control"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Course End Date</label>
+                  <input
+                    type="datetime-local"
+                    value={editForm.course_end_date}
+                    onChange={(e) => setEditForm({...editForm, course_end_date: e.target.value})}
+                    className="form-control"
+                  />
+                </div>
+              </div>
+              
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label>Payment Mode</label>
+                <input
+                  type="text"
+                  value={editForm.payment_mode}
+                  onChange={(e) => setEditForm({...editForm, payment_mode: e.target.value})}
+                  className="form-control"
+                  placeholder="e.g., Cash, Card, UPI, Bank Transfer..."
+                />
+              </div>
+              
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShowEditModal(false)} className="btn btn-secondary">
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Update Record
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
