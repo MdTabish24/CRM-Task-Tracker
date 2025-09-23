@@ -198,6 +198,16 @@ def serve_custom_subpaths(subpath):
     print(f"CUSTOM SUBPATH ROUTE HIT: {request.path}")
     return send_from_directory(app.static_folder, 'index.html')
 
+@app.route('/supervisor')
+def serve_supervisor():
+    print(f"SUPERVISOR ROUTE HIT: {request.path}")
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/supervisor/<path:subpath>')
+def serve_supervisor_subpaths(subpath):
+    print(f"SUPERVISOR SUBPATH ROUTE HIT: {request.path}")
+    return send_from_directory(app.static_folder, 'index.html')
+
 @app.route('/tasks')
 def serve_tasks():
     print(f"TASKS ROUTE HIT: {request.path}")
