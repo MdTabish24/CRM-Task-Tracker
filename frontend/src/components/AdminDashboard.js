@@ -6,6 +6,7 @@ import ProgressDashboard from './ProgressDashboard';
 import UserManagement from './UserManagement';
 import Reports from './Reports';
 import VisitManagement from './VisitManagement';
+import FinanceManagement from './FinanceManagement';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const location = useLocation();
@@ -77,6 +78,7 @@ const AdminDashboard = ({ user, onLogout }) => {
     if (path.includes('users')) return 'users';
     if (path.includes('reports')) return 'reports';
     if (path.includes('caller-tasks')) return 'caller-tasks';
+    if (path.includes('finance')) return 'finance';
     return 'dashboard';
   };
 
@@ -115,6 +117,9 @@ const AdminDashboard = ({ user, onLogout }) => {
           </li>
           <li className={getActiveTab() === 'caller-tasks' ? 'active' : ''}>
             <Link to="/admin/caller-tasks">Caller Tasks</Link>
+          </li>
+          <li className={getActiveTab() === 'finance' ? 'active' : ''}>
+            <Link to="/admin/finance">Finance</Link>
           </li>
         </ul>
       </nav>
@@ -217,6 +222,7 @@ const AdminDashboard = ({ user, onLogout }) => {
           <Route path="/visits" element={<VisitManagement />} />
           <Route path="/users" element={<UserManagement />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/finance" element={<FinanceManagement />} />
           <Route path="/caller-tasks" element={
             <div>
               <h2>Caller Personal Tasks</h2>

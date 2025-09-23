@@ -5,6 +5,7 @@ import AdminDashboard from './components/AdminDashboard';
 import CallerDashboard from './components/CallerDashboard';
 import TaskManager from './components/TaskManager';
 import CustomDashboard from './components/CustomDashboard';
+import SupervisorDashboard from './components/SupervisorDashboard';
 import './App.css';
 
 function App() {
@@ -49,7 +50,8 @@ function App() {
               user ? 
                 <Navigate to={
                   user.role === 'admin' ? '/admin' : 
-                  user.role === 'caller' ? '/caller' : '/custom'
+                  user.role === 'caller' ? '/caller' :
+                  user.role === 'supervisor' ? '/supervisor' : '/custom'
                 } replace /> : 
                 <Login onLogin={handleLogin} />
             } 
@@ -74,9 +76,18 @@ function App() {
           />
           
           <Route 
+            path="/supervisor" 
+            element={
+              user && user.role === 'supervisor' ? 
+                <SupervisorDashboard user={user} onLogout={handleLogout} /> : 
+                <Navigate to="/login" replace />
+            } 
+          />
+          
+          <Route 
             path="/custom" 
             element={
-              user && !['admin', 'caller'].includes(user.role) ? 
+              user && !['admin', 'caller', 'supervisor'].includes(user.role) ? 
                 <CustomDashboard user={user} onLogout={handleLogout} /> : 
                 <Navigate to="/login" replace />
             } 
@@ -97,7 +108,8 @@ function App() {
               user ? 
                 <Navigate to={
                   user.role === 'admin' ? '/admin' : 
-                  user.role === 'caller' ? '/caller' : '/custom'
+                  user.role === 'caller' ? '/caller' :
+                  user.role === 'supervisor' ? '/supervisor' : '/custom'
                 } replace /> : 
                 <Navigate to="/login" replace />
             } 

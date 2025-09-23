@@ -112,6 +112,15 @@ class CertifiedOfficeAssistant(db.Model):
     processed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+class Transaction(db.Model):
+    __tablename__ = 'transactions'
+    id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.Enum('earn', 'spend', name='transaction_type'), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
+    description = db.Column(db.String(200), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 class OtherAdmissions(db.Model):
     __tablename__ = 'other_admissions'
     id = db.Column(db.Integer, primary_key=True)
@@ -225,6 +234,15 @@ def init_database():
             role='admin'
         )
         db.session.add(admin)
+        
+        # Create supervisor user
+        supervisor = User(
+            name='Supervisor',
+            username='shoebmomin',
+            password_hash=generate_password_hash('shoebmomin7949'),
+            role='supervisor'
+        )
+        db.session.add(supervisor)
         
         # Create caller users
         for i in range(1, 4):
@@ -1625,6 +1643,60 @@ def delete_other_admission(admission_id):
     db.session.commit()
     
     return jsonify({'message': 'Admission deleted successfully'})
+
+@app.route('/api/admin/transactions', methods=['GET'])
+@jwt_required()
+def get_transactions():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role not in ['admin', 'supervisor']:
+        return jsonify({'message': 'Admin or Supervisor access required'}), 403
+    
+    transactions = Transaction.query.order_by(Transaction.created_at.desc()).all()
+    
+    # Calculate totals
+    total_earned = db.session.query(db.func.sum(Transaction.amount)).filter_by(type='earn').scalar() or 0
+    total_spent = db.session.query(db.func.sum(Transaction.amount)).filter_by(type='spend').scalar() or 0
+    
+    # Add automatic earnings from student fees
+    student_fees = db.session.query(db.func.sum(OtherAdmissions.fees_paid)).scalar() or 0
+    total_earned += student_fees
+    
+    return jsonify({
+        'transactions': [{
+            'id': t.id,
+            'type': t.type,
+            'amount': t.amount,
+            'description': t.description,
+            'created_at': t.created_at.isoformat()
+        } for t in transactions],
+        'total_earned': total_earned,
+        'total_spent': total_spent
+    })
+
+@app.route('/api/admin/transactions', methods=['POST'])
+@jwt_required()
+def add_transaction():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'admin':
+        return jsonify({'message': 'Admin access required'}), 403
+    
+    data = request.get_json()
+    
+    transaction = Transaction(
+        type=data['type'],
+        amount=data['amount'],
+        description=data['description'],
+        created_by=current_user_id
+    )
+    
+    db.session.add(transaction)
+    db.session.commit()
+    
+    return jsonify({'message': 'Transaction added successfully'})
 
 @app.route('/api/admin/other-admissions-list', methods=['GET'])
 @jwt_required()
