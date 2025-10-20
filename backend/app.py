@@ -2139,7 +2139,54 @@ def serve_static_files(path):
     print(f"Unknown route: {path}")
     return jsonify({'error': 'Route not found'}), 404
 
+def auto_migrate():
+    """Auto create reminder tables if they don't exist"""
+    try:
+        with app.app_context():
+            # Check if reminders table exists
+            result = db.session.execute(text("SHOW TABLES LIKE 'reminders'")).fetchone()
+            if not result:
+                print("🔄 Auto-creating reminder tables...")
+                
+                # Create reminders table
+                db.session.execute(text("""
+                    CREATE TABLE reminders (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        record_id INT NOT NULL,
+                        caller_id INT NOT NULL,
+                        scheduled_datetime DATETIME NOT NULL,
+                        reminder_17h_triggered BOOLEAN DEFAULT FALSE,
+                        reminder_exact_triggered BOOLEAN DEFAULT FALSE,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (record_id) REFERENCES records(id) ON DELETE CASCADE,
+                        FOREIGN KEY (caller_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                """))
+                
+                # Create reminder_queue table
+                db.session.execute(text("""
+                    CREATE TABLE reminder_queue (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        reminder_id INT NOT NULL,
+                        caller_id INT NOT NULL,
+                        trigger_type ENUM('17h_before', 'exact_time') NOT NULL,
+                        triggered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        is_dismissed BOOLEAN DEFAULT FALSE,
+                        FOREIGN KEY (reminder_id) REFERENCES reminders(id) ON DELETE CASCADE,
+                        FOREIGN KEY (caller_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                """))
+                
+                db.session.commit()
+                print("✅ Reminder tables created automatically!")
+    except Exception as e:
+        print(f"⚠️ Auto migration skipped: {str(e)}")
+
 if __name__ == '__main__':
+    # Auto migrate on startup
+    auto_migrate()
+    
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_ENV') == 'development'
     app.run(host='0.0.0.0', port=port, debug=debug)

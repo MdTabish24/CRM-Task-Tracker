@@ -33,22 +33,26 @@ def add_reminder_tables():
                 )
             """))
             
-            # Create indexes for better performance
-            db.session.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_reminders_caller_id ON reminders(caller_id)
-            """))
+            # Create indexes for better performance (MySQL compatible)
+            try:
+                db.session.execute(text("CREATE INDEX idx_reminders_caller_id ON reminders(caller_id)"))
+            except:
+                pass  # Index might already exist
             
-            db.session.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_reminders_scheduled_datetime ON reminders(scheduled_datetime)
-            """))
+            try:
+                db.session.execute(text("CREATE INDEX idx_reminders_scheduled_datetime ON reminders(scheduled_datetime)"))
+            except:
+                pass
             
-            db.session.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_reminder_queue_caller_id ON reminder_queue(caller_id)
-            """))
+            try:
+                db.session.execute(text("CREATE INDEX idx_reminder_queue_caller_id ON reminder_queue(caller_id)"))
+            except:
+                pass
             
-            db.session.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_reminder_queue_is_dismissed ON reminder_queue(is_dismissed)
-            """))
+            try:
+                db.session.execute(text("CREATE INDEX idx_reminder_queue_is_dismissed ON reminder_queue(is_dismissed)"))
+            except:
+                pass
             
             db.session.commit()
             print("✅ Reminder tables created successfully!")
