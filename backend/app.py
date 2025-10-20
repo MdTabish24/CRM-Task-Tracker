@@ -651,8 +651,8 @@ def get_progress():
     current_user_id = int(get_jwt_identity())
     user = User.query.get(current_user_id)
     
-    if user.role != 'admin':
-        return jsonify({'message': 'Admin access required'}), 403
+    if user.role not in ['admin', 'caller']:
+        return jsonify({'message': 'Admin or Caller access required'}), 403
     
     date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
     target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
@@ -1899,12 +1899,15 @@ def check_reminders():
         return jsonify({'message': 'Caller access required'}), 403
     
     now = datetime.utcnow()
+    print(f"🔍 Checking reminders for caller {user.name} at {now}")
     
     # Get all active reminders for this caller
     reminders = Reminder.query.filter_by(
         caller_id=current_user_id,
         is_active=True
     ).all()
+    
+    print(f"📋 Found {len(reminders)} active reminders")
     
     new_queue_items = []
     
@@ -1951,7 +1954,11 @@ def check_reminders():
                 reminder.reminder_17h_triggered = True
         
         # Check exact time trigger
+        print(f"⏰ Reminder {reminder.id}: scheduled={reminder.scheduled_datetime}, now={now}, exact_triggered={reminder.reminder_exact_triggered}")
+        
         if not reminder.reminder_exact_triggered and now >= reminder.scheduled_datetime:
+            print(f"🔔 EXACT TIME TRIGGER for reminder {reminder.id}!")
+            
             # Check if already in queue
             existing_queue = ReminderQueue.query.filter_by(
                 reminder_id=reminder.id,
@@ -1960,6 +1967,7 @@ def check_reminders():
             ).first()
             
             if not existing_queue:
+                print(f"➕ Adding to queue: reminder {reminder.id}")
                 queue_item = ReminderQueue(
                     reminder_id=reminder.id,
                     caller_id=current_user_id,
@@ -1970,10 +1978,17 @@ def check_reminders():
                     'type': 'exact_time',
                     'record_id': reminder.record_id
                 })
+            else:
+                print(f"⚠️ Already in queue: reminder {reminder.id}")
             
             reminder.reminder_exact_triggered = True
             # Deactivate reminder after exact time trigger
             reminder.is_active = False
+        else:
+            if reminder.reminder_exact_triggered:
+                print(f"✅ Already triggered: reminder {reminder.id}")
+            else:
+                print(f"⏳ Not yet time: reminder {reminder.id} (need to wait {reminder.scheduled_datetime - now})")
     
     db.session.commit()
     

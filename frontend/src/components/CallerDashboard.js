@@ -58,18 +58,25 @@ const CallerDashboard = ({ user, onLogout }) => {
 
   const checkReminders = async () => {
     try {
+      console.log('🔍 Checking reminders...');
+      
       // First check for new reminders to trigger
-      await api.get('/caller/check-reminders');
+      const checkResponse = await api.get('/caller/check-reminders');
+      console.log('✅ Check response:', checkResponse.data);
       
       // Then get the queue
-      const response = await api.get('/caller/reminder-queue');
+      const queueResponse = await api.get('/caller/reminder-queue');
+      console.log('📋 Queue response:', queueResponse.data);
       
-      if (response.data.count > 0) {
-        setReminderQueue(response.data.queue);
+      if (queueResponse.data.count > 0) {
+        console.log('🔔 Found alarms in queue:', queueResponse.data.count);
+        setReminderQueue(queueResponse.data.queue);
         setShowAlarmPopup(true);
+      } else {
+        console.log('😴 No alarms in queue');
       }
     } catch (error) {
-      console.error('Error checking reminders:', error);
+      console.error('❌ Error checking reminders:', error);
     }
   };
 
