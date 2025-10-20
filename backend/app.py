@@ -1914,36 +1914,41 @@ def check_reminders():
         hours_until_visit = time_until_visit.total_seconds() / 3600
         
         # Check 17 hours before trigger
-        # Only trigger if there are actually more than 17 hours until visit
         time_17h_before = reminder.scheduled_datetime - timedelta(hours=17)
         
-        # Only set 17h alarm if visit is more than 17 hours away
-        if not reminder.reminder_17h_triggered and hours_until_visit > 17 and now >= time_17h_before:
-            # Check if already in queue
-            existing_queue = ReminderQueue.query.filter_by(
-                reminder_id=reminder.id,
-                trigger_type='17h_before',
-                is_dismissed=False
-            ).first()
-            
-            if not existing_queue:
-                queue_item = ReminderQueue(
-                    reminder_id=reminder.id,
-                    caller_id=current_user_id,
-                    trigger_type='17h_before'
-                )
-                db.session.add(queue_item)
-                new_queue_items.append({
-                    'type': '17h_before',
-                    'record_id': reminder.record_id
-                })
-            
-            reminder.reminder_17h_triggered = True
-        
-        # If visit is less than 17 hours away, mark 17h trigger as already done
-        # so it doesn't trigger later
-        if not reminder.reminder_17h_triggered and hours_until_visit <= 17:
-            reminder.reminder_17h_triggered = True
+        # Only trigger 17h alarm if:
+        # 1. Not already triggered
+        # 2. Current time has reached 17h before mark
+        # 3. The 17h_before time is in the future (meaning visit is more than 17h away)
+        if not reminder.reminder_17h_triggered:
+            # If 17h_before time is in the past, it means alarm was set for less than 17h
+            # In that case, skip 17h alarm
+            if time_17h_before > reminder.created_at:
+                # 17h alarm is valid - check if time has come
+                if now >= time_17h_before:
+                    # Check if already in queue
+                    existing_queue = ReminderQueue.query.filter_by(
+                        reminder_id=reminder.id,
+                        trigger_type='17h_before',
+                        is_dismissed=False
+                    ).first()
+                    
+                    if not existing_queue:
+                        queue_item = ReminderQueue(
+                            reminder_id=reminder.id,
+                            caller_id=current_user_id,
+                            trigger_type='17h_before'
+                        )
+                        db.session.add(queue_item)
+                        new_queue_items.append({
+                            'type': '17h_before',
+                            'record_id': reminder.record_id
+                        })
+                    
+                    reminder.reminder_17h_triggered = True
+            else:
+                # Visit is less than 17h away, skip 17h alarm
+                reminder.reminder_17h_triggered = True
         
         # Check exact time trigger
         if not reminder.reminder_exact_triggered and now >= reminder.scheduled_datetime:
