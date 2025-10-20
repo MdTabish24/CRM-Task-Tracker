@@ -17,6 +17,7 @@ const CallerDashboard = ({ user, onLogout }) => {
   const [reminderModalRecord, setReminderModalRecord] = useState(null);
   const [reminderQueue, setReminderQueue] = useState([]);
   const [showAlarmPopup, setShowAlarmPopup] = useState(false);
+  const [activeTab, setActiveTab] = useState('tasks'); // tasks, alarms, confirmed, other
 
   useEffect(() => {
     fetchRecords();
@@ -29,11 +30,17 @@ const CallerDashboard = ({ user, onLogout }) => {
     }, 30000);
     
     return () => clearInterval(reminderInterval);
-  }, [currentPage, search]);
+  }, [currentPage, search, activeTab]);
 
   const fetchRecords = async () => {
+    if (activeTab === 'tasks') {
+      setLoading(false);
+      return; // Tasks are fetched separately
+    }
+    
     try {
-      const response = await api.get(`/caller/records?page=${currentPage}&search=${search}`);
+      const tab = activeTab === 'alarms' ? 'alarms' : activeTab === 'confirmed' ? 'confirmed' : 'other';
+      const response = await api.get(`/caller/records?page=${currentPage}&search=${search}&tab=${tab}`);
 
       setRecords(response.data.records);
       setTotalPages(response.data.pages);
@@ -91,6 +98,20 @@ const CallerDashboard = ({ user, onLogout }) => {
 
   const handleSetReminder = (record) => {
     setReminderModalRecord(record);
+  };
+
+  const handleHideRecord = async (recordId) => {
+    if (!window.confirm('Are you sure you want to hide this record?')) {
+      return;
+    }
+    
+    try {
+      await api.post(`/caller/records/${recordId}/hide`);
+      fetchRecords(); // Refresh list
+    } catch (error) {
+      console.error('Error hiding record:', error);
+      alert('Failed to hide record');
+    }
   };
 
   const handleUpdateRecord = async (recordId, updates) => {
@@ -210,10 +231,79 @@ const CallerDashboard = ({ user, onLogout }) => {
           </div>
         </div>
 
-        <CallerTasks />
-
+        {/* Tabs */}
         <div className="card">
-          <h2>My Assigned Records</h2>
+          <div style={{ borderBottom: '2px solid #e0e0e0', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={() => { setActiveTab('tasks'); setCurrentPage(1); }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: 'none',
+                  background: activeTab === 'tasks' ? '#007bff' : 'transparent',
+                  color: activeTab === 'tasks' ? 'white' : '#666',
+                  cursor: 'pointer',
+                  borderBottom: activeTab === 'tasks' ? '3px solid #007bff' : 'none',
+                  fontWeight: activeTab === 'tasks' ? 'bold' : 'normal'
+                }}
+              >
+                📋 My Tasks
+              </button>
+              <button
+                onClick={() => { setActiveTab('alarms'); setCurrentPage(1); }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: 'none',
+                  background: activeTab === 'alarms' ? '#007bff' : 'transparent',
+                  color: activeTab === 'alarms' ? 'white' : '#666',
+                  cursor: 'pointer',
+                  borderBottom: activeTab === 'alarms' ? '3px solid #007bff' : 'none',
+                  fontWeight: activeTab === 'alarms' ? 'bold' : 'normal'
+                }}
+              >
+                ⏰ With Alarms
+              </button>
+              <button
+                onClick={() => { setActiveTab('confirmed'); setCurrentPage(1); }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: 'none',
+                  background: activeTab === 'confirmed' ? '#007bff' : 'transparent',
+                  color: activeTab === 'confirmed' ? 'white' : '#666',
+                  cursor: 'pointer',
+                  borderBottom: activeTab === 'confirmed' ? '3px solid #007bff' : 'none',
+                  fontWeight: activeTab === 'confirmed' ? 'bold' : 'normal'
+                }}
+              >
+                ✅ Confirmed
+              </button>
+              <button
+                onClick={() => { setActiveTab('other'); setCurrentPage(1); }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: 'none',
+                  background: activeTab === 'other' ? '#007bff' : 'transparent',
+                  color: activeTab === 'other' ? 'white' : '#666',
+                  cursor: 'pointer',
+                  borderBottom: activeTab === 'other' ? '3px solid #007bff' : 'none',
+                  fontWeight: activeTab === 'other' ? 'bold' : 'normal'
+                }}
+              >
+                📞 Other Records
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'tasks' ? (
+            <CallerTasks />
+          ) : (
+            <>
+              <h2>
+                {activeTab === 'alarms' && 'Records with Alarms'}
+                {activeTab === 'confirmed' && 'Confirmed Records'}
+                {activeTab === 'other' && 'Other Records'}
+              </h2>
           
           <form onSubmit={handleSearch} style={{ marginBottom: '1rem' }}>
             <div style={{ display: 'flex', gap: '1rem' }}>
@@ -282,9 +372,17 @@ const CallerDashboard = ({ user, onLogout }) => {
                         onClick={() => handleSetReminder(record)}
                         className="btn btn-warning"
                         title="Set reminder for this student"
-                        style={{ fontSize: '18px', padding: '0.25rem 0.75rem' }}
+                        style={{ fontSize: '18px', padding: '0.25rem 0.75rem', marginRight: '0.5rem' }}
                       >
-                        ⏰
+                        {record.has_alarm ? '⏰✓' : '⏰'}
+                      </button>
+                      <button 
+                        onClick={() => handleHideRecord(record.id)}
+                        className="btn btn-danger"
+                        title="Hide this record"
+                        style={{ fontSize: '14px', padding: '0.25rem 0.75rem' }}
+                      >
+                        🗑️
                       </button>
                     </td>
                   </tr>
@@ -313,6 +411,8 @@ const CallerDashboard = ({ user, onLogout }) => {
                 Next
               </button>
             </div>
+          )}
+            </>
           )}
         </div>
 
