@@ -3,7 +3,12 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, verify_jwt_in_request
 from flask_cors import CORS, cross_origin
-from flask_mail import Mail, Message
+try:
+    from flask_mail import Mail, Message
+    MAIL_AVAILABLE = True
+except ImportError:
+    MAIL_AVAILABLE = False
+    print("⚠️ Flask-Mail not available - email notifications disabled")
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
@@ -50,13 +55,17 @@ app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', os.getenv('
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
-mail = Mail()
+if MAIL_AVAILABLE:
+    mail = Mail()
+else:
+    mail = None
 
 # Initialize with app
 db.init_app(app)
 migrate.init_app(app, db)
 jwt.init_app(app)
-mail.init_app(app)
+if MAIL_AVAILABLE and mail:
+    mail.init_app(app)
 
 # CORS configuration - Allow all for development
 CORS(app, origins="*", supports_credentials=True)
