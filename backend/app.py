@@ -151,6 +151,34 @@ class Admission(db.Model):
     processed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+class Reminder(db.Model):
+    __tablename__ = 'reminders'
+    id = db.Column(db.Integer, primary_key=True)
+    record_id = db.Column(db.Integer, db.ForeignKey('records.id'), nullable=False)
+    caller_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    scheduled_datetime = db.Column(db.DateTime, nullable=False)
+    reminder_17h_triggered = db.Column(db.Boolean, default=False)
+    reminder_exact_triggered = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    record = db.relationship('Record', backref='reminders')
+    caller = db.relationship('User', backref='reminders')
+
+class ReminderQueue(db.Model):
+    __tablename__ = 'reminder_queue'
+    id = db.Column(db.Integer, primary_key=True)
+    reminder_id = db.Column(db.Integer, db.ForeignKey('reminders.id'), nullable=False)
+    caller_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    trigger_type = db.Column(db.Enum('17h_before', 'exact_time', name='trigger_type'), nullable=False)
+    triggered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_dismissed = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    reminder = db.relationship('Reminder', backref='queue_items')
+    caller = db.relationship('User', backref='reminder_queue')
+
 # Frontend Routes - MUST BE FIRST
 @app.route('/')
 def serve_frontend():
@@ -1756,6 +1784,249 @@ def get_other_admissions_list():
         } for a in admissions],
         'total': len(admissions)
     })
+
+# Reminder/Alarm System Routes
+@app.route('/api/caller/reminders', methods=['POST'])
+@jwt_required()
+def create_reminder():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'caller':
+        return jsonify({'message': 'Caller access required'}), 403
+    
+    data = request.get_json()
+    record_id = data.get('record_id')
+    scheduled_datetime_str = data.get('scheduled_datetime')
+    
+    if not record_id or not scheduled_datetime_str:
+        return jsonify({'message': 'Record ID and scheduled datetime required'}), 400
+    
+    # Verify record belongs to caller
+    record = Record.query.get_or_404(record_id)
+    if record.caller_id != current_user_id:
+        return jsonify({'message': 'Access denied'}), 403
+    
+    # Parse datetime
+    try:
+        scheduled_datetime = datetime.fromisoformat(scheduled_datetime_str.replace('Z', '+00:00'))
+    except:
+        return jsonify({'message': 'Invalid datetime format'}), 400
+    
+    # Check if reminder already exists for this record
+    existing_reminder = Reminder.query.filter_by(
+        record_id=record_id,
+        caller_id=current_user_id,
+        is_active=True
+    ).first()
+    
+    if existing_reminder:
+        # Update existing reminder
+        existing_reminder.scheduled_datetime = scheduled_datetime
+        existing_reminder.reminder_17h_triggered = False
+        existing_reminder.reminder_exact_triggered = False
+    else:
+        # Create new reminder
+        reminder = Reminder(
+            record_id=record_id,
+            caller_id=current_user_id,
+            scheduled_datetime=scheduled_datetime
+        )
+        db.session.add(reminder)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Reminder set successfully',
+        'scheduled_datetime': scheduled_datetime.isoformat()
+    })
+
+@app.route('/api/caller/reminders/<int:record_id>', methods=['GET'])
+@jwt_required()
+def get_reminder_for_record(record_id):
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'caller':
+        return jsonify({'message': 'Caller access required'}), 403
+    
+    reminder = Reminder.query.filter_by(
+        record_id=record_id,
+        caller_id=current_user_id,
+        is_active=True
+    ).first()
+    
+    if not reminder:
+        return jsonify({'has_reminder': False})
+    
+    return jsonify({
+        'has_reminder': True,
+        'reminder': {
+            'id': reminder.id,
+            'scheduled_datetime': reminder.scheduled_datetime.isoformat(),
+            'reminder_17h_triggered': reminder.reminder_17h_triggered,
+            'reminder_exact_triggered': reminder.reminder_exact_triggered
+        }
+    })
+
+@app.route('/api/caller/reminders/<int:reminder_id>', methods=['DELETE'])
+@jwt_required()
+def delete_reminder(reminder_id):
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'caller':
+        return jsonify({'message': 'Caller access required'}), 403
+    
+    reminder = Reminder.query.get_or_404(reminder_id)
+    
+    if reminder.caller_id != current_user_id:
+        return jsonify({'message': 'Access denied'}), 403
+    
+    reminder.is_active = False
+    db.session.commit()
+    
+    return jsonify({'message': 'Reminder deleted successfully'})
+
+@app.route('/api/caller/check-reminders', methods=['GET'])
+@jwt_required()
+def check_reminders():
+    """Check for reminders that need to be triggered and add to queue"""
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'caller':
+        return jsonify({'message': 'Caller access required'}), 403
+    
+    now = datetime.utcnow()
+    
+    # Get all active reminders for this caller
+    reminders = Reminder.query.filter_by(
+        caller_id=current_user_id,
+        is_active=True
+    ).all()
+    
+    new_queue_items = []
+    
+    for reminder in reminders:
+        # Check 17 hours before trigger
+        time_17h_before = reminder.scheduled_datetime - timedelta(hours=17)
+        if not reminder.reminder_17h_triggered and now >= time_17h_before:
+            # Check if already in queue
+            existing_queue = ReminderQueue.query.filter_by(
+                reminder_id=reminder.id,
+                trigger_type='17h_before',
+                is_dismissed=False
+            ).first()
+            
+            if not existing_queue:
+                queue_item = ReminderQueue(
+                    reminder_id=reminder.id,
+                    caller_id=current_user_id,
+                    trigger_type='17h_before'
+                )
+                db.session.add(queue_item)
+                new_queue_items.append({
+                    'type': '17h_before',
+                    'record_id': reminder.record_id
+                })
+            
+            reminder.reminder_17h_triggered = True
+        
+        # Check exact time trigger
+        if not reminder.reminder_exact_triggered and now >= reminder.scheduled_datetime:
+            # Check if already in queue
+            existing_queue = ReminderQueue.query.filter_by(
+                reminder_id=reminder.id,
+                trigger_type='exact_time',
+                is_dismissed=False
+            ).first()
+            
+            if not existing_queue:
+                queue_item = ReminderQueue(
+                    reminder_id=reminder.id,
+                    caller_id=current_user_id,
+                    trigger_type='exact_time'
+                )
+                db.session.add(queue_item)
+                new_queue_items.append({
+                    'type': 'exact_time',
+                    'record_id': reminder.record_id
+                })
+            
+            reminder.reminder_exact_triggered = True
+            # Deactivate reminder after exact time trigger
+            reminder.is_active = False
+    
+    db.session.commit()
+    
+    return jsonify({
+        'new_reminders': len(new_queue_items),
+        'items': new_queue_items
+    })
+
+@app.route('/api/caller/reminder-queue', methods=['GET'])
+@jwt_required()
+def get_reminder_queue():
+    """Get all pending reminders in queue for caller"""
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'caller':
+        return jsonify({'message': 'Caller access required'}), 403
+    
+    # Get all undismissed queue items
+    queue_items = ReminderQueue.query.filter_by(
+        caller_id=current_user_id,
+        is_dismissed=False
+    ).order_by(ReminderQueue.triggered_at.asc()).all()
+    
+    result = []
+    for item in queue_items:
+        reminder = item.reminder
+        record = reminder.record
+        
+        result.append({
+            'queue_id': item.id,
+            'reminder_id': reminder.id,
+            'trigger_type': item.trigger_type,
+            'triggered_at': item.triggered_at.isoformat(),
+            'scheduled_datetime': reminder.scheduled_datetime.isoformat(),
+            'record': {
+                'id': record.id,
+                'phone_number': record.phone_number,
+                'name': record.name,
+                'response': record.response,
+                'notes': record.notes,
+                'visit': record.visit,
+                'updated_at': record.updated_at.isoformat() if record.updated_at else None
+            }
+        })
+    
+    return jsonify({
+        'queue': result,
+        'count': len(result)
+    })
+
+@app.route('/api/caller/reminder-queue/<int:queue_id>/dismiss', methods=['POST'])
+@jwt_required()
+def dismiss_reminder(queue_id):
+    """Dismiss a reminder from queue"""
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'caller':
+        return jsonify({'message': 'Caller access required'}), 403
+    
+    queue_item = ReminderQueue.query.get_or_404(queue_id)
+    
+    if queue_item.caller_id != current_user_id:
+        return jsonify({'message': 'Access denied'}), 403
+    
+    queue_item.is_dismissed = True
+    db.session.commit()
+    
+    return jsonify({'message': 'Reminder dismissed successfully'})
 
 # Delete Old Admin
 @app.route('/api/admin/delete-old-admin', methods=['POST'])

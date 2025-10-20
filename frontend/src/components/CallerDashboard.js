@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import api from '../utils/api';
 import VisitNotifications from './VisitNotifications';
 import CallerTasks from './CallerTasks';
+import ReminderModal from './ReminderModal';
+import ReminderAlarmPopup from './ReminderAlarmPopup';
 
 const CallerDashboard = ({ user, onLogout }) => {
   const [records, setRecords] = useState([]);
@@ -12,10 +14,21 @@ const CallerDashboard = ({ user, onLogout }) => {
   const [totalPages, setTotalPages] = useState(1);
   const [editingRecord, setEditingRecord] = useState(null);
   const [todayProgress, setTodayProgress] = useState(0);
+  const [reminderModalRecord, setReminderModalRecord] = useState(null);
+  const [reminderQueue, setReminderQueue] = useState([]);
+  const [showAlarmPopup, setShowAlarmPopup] = useState(false);
 
   useEffect(() => {
     fetchRecords();
     fetchTodayProgress();
+    checkReminders();
+    
+    // Check reminders every 30 seconds
+    const reminderInterval = setInterval(() => {
+      checkReminders();
+    }, 30000);
+    
+    return () => clearInterval(reminderInterval);
   }, [currentPage, search]);
 
   const fetchRecords = async () => {
@@ -41,6 +54,36 @@ const CallerDashboard = ({ user, onLogout }) => {
     } catch (error) {
       console.error('Error fetching progress:', error);
     }
+  };
+
+  const checkReminders = async () => {
+    try {
+      // First check for new reminders to trigger
+      await api.get('/caller/check-reminders');
+      
+      // Then get the queue
+      const response = await api.get('/caller/reminder-queue');
+      
+      if (response.data.count > 0) {
+        setReminderQueue(response.data.queue);
+        setShowAlarmPopup(true);
+      }
+    } catch (error) {
+      console.error('Error checking reminders:', error);
+    }
+  };
+
+  const handleDismissAlarm = (queueId) => {
+    setReminderQueue(prev => prev.filter(item => item.queue_id !== queueId));
+    
+    // If no more alarms, hide popup
+    if (reminderQueue.length <= 1) {
+      setShowAlarmPopup(false);
+    }
+  };
+
+  const handleSetReminder = (record) => {
+    setReminderModalRecord(record);
   };
 
   const handleUpdateRecord = async (recordId, updates) => {
@@ -224,8 +267,17 @@ const CallerDashboard = ({ user, onLogout }) => {
                       <button 
                         onClick={() => setEditingRecord(record.id)}
                         className="btn btn-primary"
+                        style={{ marginRight: '0.5rem' }}
                       >
                         Edit
+                      </button>
+                      <button 
+                        onClick={() => handleSetReminder(record)}
+                        className="btn btn-warning"
+                        title="Set reminder for this student"
+                        style={{ fontSize: '18px', padding: '0.25rem 0.75rem' }}
+                      >
+                        ⏰
                       </button>
                     </td>
                   </tr>
@@ -259,6 +311,37 @@ const CallerDashboard = ({ user, onLogout }) => {
 
         <VisitNotifications user={user} />
       </main>
+
+      {/* Reminder Modal */}
+      {reminderModalRecord && (
+        <ReminderModal
+          record={reminderModalRecord}
+          onClose={() => setReminderModalRecord(null)}
+          onSuccess={() => {
+            fetchRecords();
+            checkReminders();
+          }}
+        />
+      )}
+
+      {/* Alarm Popup - Show first alarm in queue */}
+      {showAlarmPopup && reminderQueue.length > 0 && (
+        <>
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            zIndex: 9999
+          }} />
+          <ReminderAlarmPopup
+            queueItem={reminderQueue[0]}
+            onDismiss={handleDismissAlarm}
+          />
+        </>
+      )}
     </div>
   );
 };
