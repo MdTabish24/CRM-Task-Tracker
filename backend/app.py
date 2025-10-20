@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, verify_jwt_in_request
 from flask_cors import CORS, cross_origin
+from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
@@ -37,15 +38,25 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'max_overflow': 30
 }
 
+# Email configuration
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True') == 'True'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', os.getenv('MAIL_USERNAME'))
+
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
+mail = Mail()
 
 # Initialize with app
 db.init_app(app)
 migrate.init_app(app, db)
 jwt.init_app(app)
+mail.init_app(app)
 
 # CORS configuration - Allow all for development
 CORS(app, origins="*", supports_credentials=True)
@@ -74,6 +85,7 @@ class User(db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(50), nullable=False)
+    email = db.Column(db.String(100), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Record(db.Model):
@@ -86,6 +98,7 @@ class Record(db.Model):
     notes = db.Column(db.Text)
     visit = db.Column(db.Enum('visited', 'confirmed', 'declined', 'pending', name='visit_status'), default='pending')
     visit_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    hidden_from_caller = db.Column(db.Boolean, default=False)
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -560,8 +573,23 @@ def get_caller_records():
     current_user_id = int(get_jwt_identity())
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '')
+    tab = request.args.get('tab', 'all')  # all, alarms, confirmed, other
     
-    query = Record.query.filter_by(caller_id=current_user_id)
+    # Base query - exclude hidden records
+    query = Record.query.filter_by(caller_id=current_user_id, hidden_from_caller=False)
+    
+    # Filter by tab
+    if tab == 'alarms':
+        # Records with active reminders
+        reminder_record_ids = [r.record_id for r in Reminder.query.filter_by(
+            caller_id=current_user_id,
+            is_active=True
+        ).all()]
+        query = query.filter(Record.id.in_(reminder_record_ids)) if reminder_record_ids else query.filter(Record.id == -1)
+    elif tab == 'confirmed':
+        query = query.filter_by(visit='confirmed')
+    elif tab == 'other':
+        query = query.filter(Record.visit != 'confirmed')
     
     if search:
         query = query.filter(
@@ -575,16 +603,28 @@ def get_caller_records():
         page=page, per_page=50, error_out=False
     )
     
-    return jsonify({
-        'records': [{
+    # Check if each record has an alarm
+    records_with_alarms = []
+    for r in records.items:
+        has_alarm = Reminder.query.filter_by(
+            record_id=r.id,
+            caller_id=current_user_id,
+            is_active=True
+        ).first() is not None
+        
+        records_with_alarms.append({
             'id': r.id,
             'phone_number': r.phone_number,
             'name': r.name,
             'response': r.response,
             'notes': r.notes,
             'visit': r.visit,
+            'has_alarm': has_alarm,
             'updated_at': r.updated_at.isoformat() if r.updated_at else None
-        } for r in records.items],
+        })
+    
+    return jsonify({
+        'records': records_with_alarms,
         'total': records.total,
         'pages': records.pages,
         'current_page': page
@@ -615,6 +655,27 @@ def update_record(record_id):
     db.session.commit()
     
     return jsonify({'message': 'Record updated successfully'})
+
+@app.route('/api/caller/records/<int:record_id>/hide', methods=['POST'])
+@jwt_required()
+def hide_record_from_caller(record_id):
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'caller':
+        return jsonify({'message': 'Caller access required'}), 403
+    
+    record = Record.query.get_or_404(record_id)
+    
+    # Verify record belongs to caller
+    if record.caller_id != current_user_id:
+        return jsonify({'message': 'Access denied'}), 403
+    
+    # Soft delete - hide from caller but preserve status
+    record.hidden_from_caller = True
+    db.session.commit()
+    
+    return jsonify({'message': 'Record hidden successfully'})
 
 # Admin Routes - Caller Tasks View
 @app.route('/api/admin/caller-tasks', methods=['GET'])
@@ -1966,6 +2027,10 @@ def check_reminders():
                             'type': '17h_before',
                             'record_id': reminder.record_id
                         })
+                        
+                        # Send email notification
+                        record = reminder.record
+                        send_reminder_email(user.email, user.name, record, '17h_before', reminder.scheduled_datetime)
                     
                     reminder.reminder_17h_triggered = True
             else:
@@ -2000,6 +2065,10 @@ def check_reminders():
                     'type': 'exact_time',
                     'record_id': reminder.record_id
                 })
+                
+                # Send email notification
+                record = reminder.record
+                send_reminder_email(user.email, user.name, record, 'exact_time', reminder.scheduled_datetime)
             else:
                 app.logger.warning(f"⚠️ Already in queue: reminder {reminder.id}")
                 print(f"⚠️ Already in queue: reminder {reminder.id}", flush=True)
@@ -2157,6 +2226,65 @@ def serve_static_files(path):
     print(f"Unknown route: {path}")
     return jsonify({'error': 'Route not found'}), 404
 
+def send_reminder_email(caller_email, caller_name, record, trigger_type, scheduled_time):
+    """Send reminder email to caller"""
+    try:
+        if not caller_email:
+            print(f"⚠️ No email for caller {caller_name}")
+            return
+        
+        # Email subject and body based on trigger type
+        if trigger_type == '17h_before':
+            subject = f"⏰ Reminder: Student visit in 17 hours - {record.name or record.phone_number}"
+            body = f"""
+Hello {caller_name},
+
+This is a reminder that a student is scheduled to visit in 17 hours.
+
+Student Details:
+- Name: {record.name or 'Not provided'}
+- Phone: {record.phone_number}
+- Response: {record.response or 'No response'}
+- Notes: {record.notes or 'No notes'}
+- Scheduled Time: {scheduled_time.strftime('%d %B %Y, %I:%M %p')}
+
+Please prepare for the visit.
+
+Best regards,
+CRM Reminder System
+            """
+        else:  # exact_time
+            subject = f"🔔 URGENT: Student visit NOW - {record.name or record.phone_number}"
+            body = f"""
+Hello {caller_name},
+
+URGENT REMINDER: A student is scheduled to visit NOW!
+
+Student Details:
+- Name: {record.name or 'Not provided'}
+- Phone: {record.phone_number}
+- Response: {record.response or 'No response'}
+- Notes: {record.notes or 'No notes'}
+- Scheduled Time: {scheduled_time.strftime('%d %B %Y, %I:%M %p')}
+
+Please attend to the student immediately.
+
+Best regards,
+CRM Reminder System
+            """
+        
+        msg = Message(
+            subject=subject,
+            recipients=[caller_email],
+            body=body
+        )
+        
+        mail.send(msg)
+        print(f"✅ Email sent to {caller_email} for {trigger_type}")
+        
+    except Exception as e:
+        print(f"❌ Failed to send email to {caller_email}: {str(e)}")
+
 def auto_migrate():
     """Auto create reminder tables if they don't exist"""
     try:
@@ -2199,6 +2327,23 @@ def auto_migrate():
                 
                 db.session.commit()
                 print("✅ Reminder tables created automatically!")
+            
+            # Add hidden_from_caller column to records if it doesn't exist
+            try:
+                db.session.execute(text("ALTER TABLE records ADD COLUMN hidden_from_caller BOOLEAN DEFAULT FALSE"))
+                db.session.commit()
+                print("✅ Added hidden_from_caller column to records")
+            except:
+                pass  # Column might already exist
+            
+            # Add email column to users if it doesn't exist
+            try:
+                db.session.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(100)"))
+                db.session.commit()
+                print("✅ Added email column to users")
+            except:
+                pass  # Column might already exist
+                
     except Exception as e:
         print(f"⚠️ Auto migration skipped: {str(e)}")
 
