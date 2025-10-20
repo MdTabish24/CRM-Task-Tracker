@@ -1799,7 +1799,8 @@ def create_reminder():
     record_id = data.get('record_id')
     scheduled_datetime_str = data.get('scheduled_datetime')
     
-    print(f"🔔 Creating reminder: record_id={record_id}, datetime={scheduled_datetime_str}")
+    app.logger.info(f"🔔 Creating reminder: record_id={record_id}, datetime={scheduled_datetime_str}")
+    print(f"🔔 Creating reminder: record_id={record_id}, datetime={scheduled_datetime_str}", flush=True)
     
     if not record_id or not scheduled_datetime_str:
         return jsonify({'message': 'Record ID and scheduled datetime required'}), 400
@@ -1812,9 +1813,11 @@ def create_reminder():
     # Parse datetime
     try:
         scheduled_datetime = datetime.fromisoformat(scheduled_datetime_str.replace('Z', '+00:00'))
-        print(f"📅 Parsed datetime: {scheduled_datetime}")
+        app.logger.info(f"📅 Parsed datetime: {scheduled_datetime}")
+        print(f"📅 Parsed datetime: {scheduled_datetime}", flush=True)
     except Exception as e:
-        print(f"❌ DateTime parse error: {e}")
+        app.logger.error(f"❌ DateTime parse error: {e}")
+        print(f"❌ DateTime parse error: {e}", flush=True)
         return jsonify({'message': 'Invalid datetime format'}), 400
     
     # Check if reminder already exists for this record
@@ -1825,13 +1828,15 @@ def create_reminder():
     ).first()
     
     if existing_reminder:
-        print(f"🔄 Updating existing reminder {existing_reminder.id}")
+        app.logger.info(f"🔄 Updating existing reminder {existing_reminder.id}")
+        print(f"🔄 Updating existing reminder {existing_reminder.id}", flush=True)
         # Update existing reminder
         existing_reminder.scheduled_datetime = scheduled_datetime
         existing_reminder.reminder_17h_triggered = False
         existing_reminder.reminder_exact_triggered = False
     else:
-        print(f"➕ Creating new reminder")
+        app.logger.info(f"➕ Creating new reminder")
+        print(f"➕ Creating new reminder", flush=True)
         # Create new reminder
         reminder = Reminder(
             record_id=record_id,
@@ -1841,7 +1846,8 @@ def create_reminder():
         db.session.add(reminder)
     
     db.session.commit()
-    print(f"✅ Reminder saved successfully")
+    app.logger.info(f"✅ Reminder saved successfully")
+    print(f"✅ Reminder saved successfully", flush=True)
     
     return jsonify({
         'message': 'Reminder set successfully',
@@ -1906,7 +1912,8 @@ def check_reminders():
         return jsonify({'message': 'Caller access required'}), 403
     
     now = datetime.utcnow()
-    print(f"🔍 Checking reminders for caller {user.name} at {now}")
+    app.logger.info(f"🔍 Checking reminders for caller {user.name} at {now}")
+    print(f"🔍 Checking reminders for caller {user.name} at {now}", flush=True)
     
     # Get all active reminders for this caller
     reminders = Reminder.query.filter_by(
@@ -1914,7 +1921,8 @@ def check_reminders():
         is_active=True
     ).all()
     
-    print(f"📋 Found {len(reminders)} active reminders")
+    app.logger.info(f"📋 Found {len(reminders)} active reminders")
+    print(f"📋 Found {len(reminders)} active reminders", flush=True)
     
     new_queue_items = []
     
@@ -1961,10 +1969,12 @@ def check_reminders():
                 reminder.reminder_17h_triggered = True
         
         # Check exact time trigger
-        print(f"⏰ Reminder {reminder.id}: scheduled={reminder.scheduled_datetime}, now={now}, exact_triggered={reminder.reminder_exact_triggered}")
+        app.logger.info(f"⏰ Reminder {reminder.id}: scheduled={reminder.scheduled_datetime}, now={now}, exact_triggered={reminder.reminder_exact_triggered}")
+        print(f"⏰ Reminder {reminder.id}: scheduled={reminder.scheduled_datetime}, now={now}, exact_triggered={reminder.reminder_exact_triggered}", flush=True)
         
         if not reminder.reminder_exact_triggered and now >= reminder.scheduled_datetime:
-            print(f"🔔 EXACT TIME TRIGGER for reminder {reminder.id}!")
+            app.logger.info(f"🔔 EXACT TIME TRIGGER for reminder {reminder.id}!")
+            print(f"🔔 EXACT TIME TRIGGER for reminder {reminder.id}!", flush=True)
             
             # Check if already in queue
             existing_queue = ReminderQueue.query.filter_by(
@@ -1974,7 +1984,8 @@ def check_reminders():
             ).first()
             
             if not existing_queue:
-                print(f"➕ Adding to queue: reminder {reminder.id}")
+                app.logger.info(f"➕ Adding to queue: reminder {reminder.id}")
+                print(f"➕ Adding to queue: reminder {reminder.id}", flush=True)
                 queue_item = ReminderQueue(
                     reminder_id=reminder.id,
                     caller_id=current_user_id,
@@ -1986,16 +1997,19 @@ def check_reminders():
                     'record_id': reminder.record_id
                 })
             else:
-                print(f"⚠️ Already in queue: reminder {reminder.id}")
+                app.logger.warning(f"⚠️ Already in queue: reminder {reminder.id}")
+                print(f"⚠️ Already in queue: reminder {reminder.id}", flush=True)
             
             reminder.reminder_exact_triggered = True
             # Deactivate reminder after exact time trigger
             reminder.is_active = False
         else:
             if reminder.reminder_exact_triggered:
-                print(f"✅ Already triggered: reminder {reminder.id}")
+                app.logger.info(f"✅ Already triggered: reminder {reminder.id}")
+                print(f"✅ Already triggered: reminder {reminder.id}", flush=True)
             else:
-                print(f"⏳ Not yet time: reminder {reminder.id} (need to wait {reminder.scheduled_datetime - now})")
+                app.logger.info(f"⏳ Not yet time: reminder {reminder.id} (need to wait {reminder.scheduled_datetime - now})")
+                print(f"⏳ Not yet time: reminder {reminder.id} (need to wait {reminder.scheduled_datetime - now})", flush=True)
     
     db.session.commit()
     
