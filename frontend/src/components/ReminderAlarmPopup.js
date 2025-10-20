@@ -6,7 +6,7 @@ const ReminderAlarmPopup = ({ queueItem, onDismiss }) => {
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
-    // Create alarm sound using Web Audio API
+    // Create LOUD alarm sound using Web Audio API
     const playAlarmSound = () => {
       try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -15,25 +15,34 @@ const ReminderAlarmPopup = ({ queueItem, onDismiss }) => {
         const playBeep = () => {
           if (!isPlaying) return;
           
-          const oscillator = audioContext.createOscillator();
+          // Create two oscillators for richer, louder sound
+          const oscillator1 = audioContext.createOscillator();
+          const oscillator2 = audioContext.createOscillator();
           const gainNode = audioContext.createGain();
           
-          oscillator.connect(gainNode);
+          oscillator1.connect(gainNode);
+          oscillator2.connect(gainNode);
           gainNode.connect(audioContext.destination);
           
-          oscillator.frequency.value = 800; // Frequency in Hz
-          oscillator.type = 'sine';
+          // Two frequencies for louder, more attention-grabbing sound
+          oscillator1.frequency.value = 800; // Main frequency
+          oscillator2.frequency.value = 1000; // Harmonic frequency
+          oscillator1.type = 'square'; // Square wave is louder than sine
+          oscillator2.type = 'square';
           
-          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+          // Much louder volume (0.7 instead of 0.3)
+          gainNode.gain.setValueAtTime(0.7, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
           
-          oscillator.start(audioContext.currentTime);
-          oscillator.stop(audioContext.currentTime + 0.5);
+          oscillator1.start(audioContext.currentTime);
+          oscillator2.start(audioContext.currentTime);
+          oscillator1.stop(audioContext.currentTime + 0.4);
+          oscillator2.stop(audioContext.currentTime + 0.4);
           
-          // Repeat beep every 1 second
+          // Faster beeps - every 0.6 seconds for more urgency
           setTimeout(() => {
             if (isPlaying) playBeep();
-          }, 1000);
+          }, 600);
         };
         
         playBeep();
@@ -60,7 +69,25 @@ const ReminderAlarmPopup = ({ queueItem, onDismiss }) => {
     };
   }, []);
 
+  const handleOkButton = async () => {
+    // For 17h_before, just acknowledge - don't dismiss from queue
+    // Stop audio
+    if (audioRef.current && audioRef.current.stop) {
+      audioRef.current.stop();
+      setIsPlaying(false);
+    }
+
+    // Only dismiss from queue, don't deactivate reminder
+    try {
+      await api.post(`/caller/reminder-queue/${queueItem.queue_id}/dismiss`);
+      onDismiss(queueItem.queue_id);
+    } catch (error) {
+      console.error('Error dismissing reminder:', error);
+    }
+  };
+
   const handleStopAlarm = async () => {
+    // For exact_time, stop alarm and remove from queue completely
     // Stop audio
     if (audioRef.current && audioRef.current.stop) {
       audioRef.current.stop();
@@ -78,9 +105,33 @@ const ReminderAlarmPopup = ({ queueItem, onDismiss }) => {
 
   const getTriggerMessage = () => {
     if (queueItem.trigger_type === '17h_before') {
-      return '⏰ Reminder: Student visit scheduled in 17 hours!';
+      return '⏰ ADVANCE REMINDER: Student will visit in 17 hours!';
     } else {
-      return '🔔 ALERT: Student visit scheduled NOW!';
+      return '🔔 URGENT ALERT: Student visit scheduled NOW!';
+    }
+  };
+
+  const getButtonText = () => {
+    if (queueItem.trigger_type === '17h_before') {
+      return '✓ OK, GOT IT';
+    } else {
+      return '🛑 STOP ALARM';
+    }
+  };
+
+  const getButtonColor = () => {
+    if (queueItem.trigger_type === '17h_before') {
+      return '#4CAF50'; // Green for OK
+    } else {
+      return '#f44336'; // Red for Stop
+    }
+  };
+
+  const getButtonHoverColor = () => {
+    if (queueItem.trigger_type === '17h_before') {
+      return '#45a049'; // Darker green
+    } else {
+      return '#d32f2f'; // Darker red
     }
   };
 
@@ -182,23 +233,34 @@ const ReminderAlarmPopup = ({ queueItem, onDismiss }) => {
 
       <div style={{ textAlign: 'center' }}>
         <button
-          onClick={handleStopAlarm}
+          onClick={queueItem.trigger_type === '17h_before' ? handleOkButton : handleStopAlarm}
           style={{
             padding: '1rem 3rem',
             fontSize: '18px',
             fontWeight: 'bold',
-            backgroundColor: '#f44336',
+            backgroundColor: getButtonColor(),
             color: 'white',
             border: 'none',
             borderRadius: '8px',
             cursor: 'pointer',
             boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
           }}
-          onMouseOver={(e) => e.target.style.backgroundColor = '#d32f2f'}
-          onMouseOut={(e) => e.target.style.backgroundColor = '#f44336'}
+          onMouseOver={(e) => e.target.style.backgroundColor = getButtonHoverColor()}
+          onMouseOut={(e) => e.target.style.backgroundColor = getButtonColor()}
         >
-          🛑 STOP ALARM
+          {getButtonText()}
         </button>
+        
+        {queueItem.trigger_type === '17h_before' && (
+          <div style={{
+            marginTop: '1rem',
+            fontSize: '14px',
+            color: '#666',
+            fontStyle: 'italic'
+          }}>
+            You will receive another alarm at the exact scheduled time
+          </div>
+        )}
       </div>
     </div>
   );

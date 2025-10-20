@@ -1909,9 +1909,16 @@ def check_reminders():
     new_queue_items = []
     
     for reminder in reminders:
+        # Calculate time difference between now and scheduled time
+        time_until_visit = reminder.scheduled_datetime - now
+        hours_until_visit = time_until_visit.total_seconds() / 3600
+        
         # Check 17 hours before trigger
+        # Only trigger if there are actually more than 17 hours until visit
         time_17h_before = reminder.scheduled_datetime - timedelta(hours=17)
-        if not reminder.reminder_17h_triggered and now >= time_17h_before:
+        
+        # Only set 17h alarm if visit is more than 17 hours away
+        if not reminder.reminder_17h_triggered and hours_until_visit > 17 and now >= time_17h_before:
             # Check if already in queue
             existing_queue = ReminderQueue.query.filter_by(
                 reminder_id=reminder.id,
@@ -1931,6 +1938,11 @@ def check_reminders():
                     'record_id': reminder.record_id
                 })
             
+            reminder.reminder_17h_triggered = True
+        
+        # If visit is less than 17 hours away, mark 17h trigger as already done
+        # so it doesn't trigger later
+        if not reminder.reminder_17h_triggered and hours_until_visit <= 17:
             reminder.reminder_17h_triggered = True
         
         # Check exact time trigger
