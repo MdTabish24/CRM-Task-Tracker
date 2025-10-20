@@ -1799,6 +1799,8 @@ def create_reminder():
     record_id = data.get('record_id')
     scheduled_datetime_str = data.get('scheduled_datetime')
     
+    print(f"🔔 Creating reminder: record_id={record_id}, datetime={scheduled_datetime_str}")
+    
     if not record_id or not scheduled_datetime_str:
         return jsonify({'message': 'Record ID and scheduled datetime required'}), 400
     
@@ -1810,7 +1812,9 @@ def create_reminder():
     # Parse datetime
     try:
         scheduled_datetime = datetime.fromisoformat(scheduled_datetime_str.replace('Z', '+00:00'))
-    except:
+        print(f"📅 Parsed datetime: {scheduled_datetime}")
+    except Exception as e:
+        print(f"❌ DateTime parse error: {e}")
         return jsonify({'message': 'Invalid datetime format'}), 400
     
     # Check if reminder already exists for this record
@@ -1821,11 +1825,13 @@ def create_reminder():
     ).first()
     
     if existing_reminder:
+        print(f"🔄 Updating existing reminder {existing_reminder.id}")
         # Update existing reminder
         existing_reminder.scheduled_datetime = scheduled_datetime
         existing_reminder.reminder_17h_triggered = False
         existing_reminder.reminder_exact_triggered = False
     else:
+        print(f"➕ Creating new reminder")
         # Create new reminder
         reminder = Reminder(
             record_id=record_id,
@@ -1835,6 +1841,7 @@ def create_reminder():
         db.session.add(reminder)
     
     db.session.commit()
+    print(f"✅ Reminder saved successfully")
     
     return jsonify({
         'message': 'Reminder set successfully',
