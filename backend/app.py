@@ -7,6 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
+import pytz
 
 load_dotenv()
 
@@ -1810,11 +1811,12 @@ def create_reminder():
     if record.caller_id != current_user_id:
         return jsonify({'message': 'Access denied'}), 403
     
-    # Parse datetime
+    # Parse datetime and convert to IST
     try:
-        scheduled_datetime = datetime.fromisoformat(scheduled_datetime_str.replace('Z', '+00:00'))
-        app.logger.info(f"📅 Parsed datetime: {scheduled_datetime}")
-        print(f"📅 Parsed datetime: {scheduled_datetime}", flush=True)
+        # Parse as naive datetime (frontend sends local time)
+        scheduled_datetime = datetime.fromisoformat(scheduled_datetime_str.replace('Z', ''))
+        app.logger.info(f"📅 Parsed datetime (IST): {scheduled_datetime}")
+        print(f"📅 Parsed datetime (IST): {scheduled_datetime}", flush=True)
     except Exception as e:
         app.logger.error(f"❌ DateTime parse error: {e}")
         print(f"❌ DateTime parse error: {e}", flush=True)
@@ -1911,7 +1913,9 @@ def check_reminders():
     if user.role != 'caller':
         return jsonify({'message': 'Caller access required'}), 403
     
-    now = datetime.utcnow()
+    # Use IST timezone
+    ist = pytz.timezone('Asia/Kolkata')
+    now = datetime.now(ist).replace(tzinfo=None)  # Remove timezone info for comparison
     app.logger.info(f"🔍 Checking reminders for caller {user.name} at {now}")
     print(f"🔍 Checking reminders for caller {user.name} at {now}", flush=True)
     
@@ -2156,6 +2160,7 @@ def serve_static_files(path):
 def auto_migrate():
     """Auto create reminder tables if they don't exist"""
     try:
+        from sqlalchemy import text
         with app.app_context():
             # Check if reminders table exists
             result = db.session.execute(text("SHOW TABLES LIKE 'reminders'")).fetchone()
