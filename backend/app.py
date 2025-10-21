@@ -94,7 +94,6 @@ class User(db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(50), nullable=False)
-    email = db.Column(db.String(100), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Record(db.Model):
@@ -2037,9 +2036,10 @@ def check_reminders():
                             'record_id': reminder.record_id
                         })
                         
-                        # Send email notification
+                        # Send email notification (if email available)
                         record = reminder.record
-                        send_reminder_email(user.email, user.name, record, '17h_before', reminder.scheduled_datetime)
+                        if hasattr(user, 'email') and user.email:
+                            send_reminder_email(user.email, user.name, record, '17h_before', reminder.scheduled_datetime)
                     
                     reminder.reminder_17h_triggered = True
             else:
@@ -2075,9 +2075,10 @@ def check_reminders():
                     'record_id': reminder.record_id
                 })
                 
-                # Send email notification
+                # Send email notification (if email available)
                 record = reminder.record
-                send_reminder_email(user.email, user.name, record, 'exact_time', reminder.scheduled_datetime)
+                if hasattr(user, 'email') and user.email:
+                    send_reminder_email(user.email, user.name, record, 'exact_time', reminder.scheduled_datetime)
             else:
                 app.logger.warning(f"⚠️ Already in queue: reminder {reminder.id}")
                 print(f"⚠️ Already in queue: reminder {reminder.id}", flush=True)
