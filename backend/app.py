@@ -106,7 +106,6 @@ class Record(db.Model):
     notes = db.Column(db.Text)
     visit = db.Column(db.Enum('visited', 'confirmed', 'declined', 'pending', name='visit_status'), default='pending')
     visit_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    hidden_from_caller = db.Column(db.Boolean, default=False)
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -583,8 +582,8 @@ def get_caller_records():
     search = request.args.get('search', '')
     tab = request.args.get('tab', 'all')  # all, alarms, confirmed, other
     
-    # Base query - exclude hidden records
-    query = Record.query.filter_by(caller_id=current_user_id, hidden_from_caller=False)
+    # Base query
+    query = Record.query.filter_by(caller_id=current_user_id)
     
     # Filter by tab
     if tab == 'alarms':
@@ -664,26 +663,7 @@ def update_record(record_id):
     
     return jsonify({'message': 'Record updated successfully'})
 
-@app.route('/api/caller/records/<int:record_id>/hide', methods=['POST'])
-@jwt_required()
-def hide_record_from_caller(record_id):
-    current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
-    
-    if user.role != 'caller':
-        return jsonify({'message': 'Caller access required'}), 403
-    
-    record = Record.query.get_or_404(record_id)
-    
-    # Verify record belongs to caller
-    if record.caller_id != current_user_id:
-        return jsonify({'message': 'Access denied'}), 403
-    
-    # Soft delete - hide from caller but preserve status
-    record.hidden_from_caller = True
-    db.session.commit()
-    
-    return jsonify({'message': 'Record hidden successfully'})
+
 
 # Admin Routes - Caller Tasks View
 @app.route('/api/admin/caller-tasks', methods=['GET'])
@@ -2338,21 +2318,7 @@ def auto_migrate():
                 db.session.commit()
                 print("✅ Reminder tables created automatically!")
             
-            # Add hidden_from_caller column to records if it doesn't exist
-            try:
-                db.session.execute(text("ALTER TABLE records ADD COLUMN hidden_from_caller BOOLEAN DEFAULT FALSE"))
-                db.session.commit()
-                print("✅ Added hidden_from_caller column to records")
-            except:
-                pass  # Column might already exist
-            
-            # Add email column to users if it doesn't exist
-            try:
-                db.session.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(100)"))
-                db.session.commit()
-                print("✅ Added email column to users")
-            except:
-                pass  # Column might already exist
+
                 
     except Exception as e:
         print(f"⚠️ Auto migration skipped: {str(e)}")
