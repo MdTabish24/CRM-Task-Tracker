@@ -622,10 +622,12 @@ def get_caller_records():
             is_active=True
         ).all()]
         query = query.filter(Record.id.in_(reminder_record_ids)) if reminder_record_ids else query.filter(Record.id == -1)
+    elif tab == 'visited':
+        query = query.filter_by(visit='visited')
     elif tab == 'confirmed':
         query = query.filter_by(visit='confirmed')
     elif tab == 'other':
-        query = query.filter(Record.visit != 'confirmed')
+        query = query.filter(Record.visit.notin_(['confirmed', 'visited']))
     
     if search:
         query = query.filter(

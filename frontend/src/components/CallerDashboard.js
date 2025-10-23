@@ -17,7 +17,7 @@ const CallerDashboard = ({ user, onLogout }) => {
   const [reminderModalRecord, setReminderModalRecord] = useState(null);
   const [reminderQueue, setReminderQueue] = useState([]);
   const [showAlarmPopup, setShowAlarmPopup] = useState(false);
-  const [activeTab, setActiveTab] = useState('tasks'); // tasks, alarms, confirmed, other
+  const [activeTab, setActiveTab] = useState('tasks'); // tasks, alarms, visited, confirmed, other
 
   useEffect(() => {
     fetchRecords();
@@ -39,7 +39,9 @@ const CallerDashboard = ({ user, onLogout }) => {
     }
     
     try {
-      const tab = activeTab === 'alarms' ? 'alarms' : activeTab === 'confirmed' ? 'confirmed' : 'other';
+      const tab = activeTab === 'alarms' ? 'alarms' : 
+                  activeTab === 'visited' ? 'visited' :
+                  activeTab === 'confirmed' ? 'confirmed' : 'other';
       const response = await api.get(`/caller/records?page=${currentPage}&search=${search}&tab=${tab}`);
 
       setRecords(response.data.records);
@@ -264,6 +266,20 @@ const CallerDashboard = ({ user, onLogout }) => {
                 ⏰ With Alarms
               </button>
               <button
+                onClick={() => { setActiveTab('visited'); setCurrentPage(1); }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: 'none',
+                  background: activeTab === 'visited' ? '#007bff' : 'transparent',
+                  color: activeTab === 'visited' ? 'white' : '#666',
+                  cursor: 'pointer',
+                  borderBottom: activeTab === 'visited' ? '3px solid #007bff' : 'none',
+                  fontWeight: activeTab === 'visited' ? 'bold' : 'normal'
+                }}
+              >
+                👥 Visited
+              </button>
+              <button
                 onClick={() => { setActiveTab('confirmed'); setCurrentPage(1); }}
                 style={{
                   padding: '0.75rem 1.5rem',
@@ -301,6 +317,7 @@ const CallerDashboard = ({ user, onLogout }) => {
             <>
               <h2>
                 {activeTab === 'alarms' && 'Records with Alarms'}
+                {activeTab === 'visited' && 'Visited Records (Read Only)'}
                 {activeTab === 'confirmed' && 'Confirmed Records'}
                 {activeTab === 'other' && 'Other Records'}
               </h2>
@@ -361,29 +378,44 @@ const CallerDashboard = ({ user, onLogout }) => {
                       </span>
                     </td>
                     <td>
-                      <button 
-                        onClick={() => setEditingRecord(record.id)}
-                        className="btn btn-primary"
-                        style={{ marginRight: '0.5rem' }}
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        onClick={() => handleSetReminder(record)}
-                        className="btn btn-warning"
-                        title="Set reminder for this student"
-                        style={{ fontSize: '18px', padding: '0.25rem 0.75rem', marginRight: '0.5rem' }}
-                      >
-                        {record.has_alarm ? '⏰✓' : '⏰'}
-                      </button>
-                      <button 
-                        onClick={() => handleHideRecord(record.id)}
-                        className="btn btn-danger"
-                        title="Hide this record"
-                        style={{ fontSize: '14px', padding: '0.25rem 0.75rem' }}
-                      >
-                        🗑️
-                      </button>
+                      {activeTab === 'visited' ? (
+                        // Visited tab - only alarm button (read-only)
+                        <button 
+                          onClick={() => handleSetReminder(record)}
+                          className="btn btn-warning"
+                          title="Set reminder for this student"
+                          style={{ fontSize: '18px', padding: '0.25rem 0.75rem' }}
+                        >
+                          {record.has_alarm ? '⏰✓' : '⏰'}
+                        </button>
+                      ) : (
+                        // Other tabs - full access
+                        <>
+                          <button 
+                            onClick={() => setEditingRecord(record.id)}
+                            className="btn btn-primary"
+                            style={{ marginRight: '0.5rem' }}
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => handleSetReminder(record)}
+                            className="btn btn-warning"
+                            title="Set reminder for this student"
+                            style={{ fontSize: '18px', padding: '0.25rem 0.75rem', marginRight: '0.5rem' }}
+                          >
+                            {record.has_alarm ? '⏰✓' : '⏰'}
+                          </button>
+                          <button 
+                            onClick={() => handleHideRecord(record.id)}
+                            className="btn btn-danger"
+                            title="Hide this record"
+                            style={{ fontSize: '14px', padding: '0.25rem 0.75rem' }}
+                          >
+                            🗑️
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 )
