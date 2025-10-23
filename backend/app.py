@@ -537,6 +537,8 @@ def upload_csv():
             file_records_added = 0
             file_skipped_duplicates = 0
             
+            print(f"💾 Starting to save {len(records_data)} records to database...", flush=True)
+            
             for index, record_data in enumerate(records_data):
                 phone_number = record_data['phone_number']
                 
@@ -550,14 +552,20 @@ def upload_csv():
                 caller = callers[index % len(callers)]
                 
                 # Create new record
-                record = Record(
-                    caller_id=caller.id,
-                    phone_number=phone_number,
-                    name=record_data['name'],
-                    hidden_from_caller=False
-                )
-                db.session.add(record)
-                file_records_added += 1
+                try:
+                    record = Record(
+                        caller_id=caller.id,
+                        phone_number=phone_number,
+                        name=record_data['name'],
+                        hidden_from_caller=False
+                    )
+                    db.session.add(record)
+                    file_records_added += 1
+                except Exception as e:
+                    print(f"❌ Error adding record {phone_number}: {str(e)}", flush=True)
+                    continue
+            
+            print(f"✅ Added {file_records_added} records, skipped {file_skipped_duplicates} duplicates", flush=True)
             
             total_records_added += file_records_added
             total_skipped_duplicates += file_skipped_duplicates
@@ -571,7 +579,9 @@ def upload_csv():
             })
         
         # Commit all changes
+        print(f"💾 Committing {total_records_added} records to database...", flush=True)
         db.session.commit()
+        print(f"✅ Database commit successful!", flush=True)
         
         return jsonify({
             'success': True,
