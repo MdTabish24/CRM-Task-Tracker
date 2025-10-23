@@ -384,12 +384,17 @@ def upload_csv():
     current_user_id = int(get_jwt_identity())
     user = User.query.get(current_user_id)
     
+    print(f"📤 Upload request from user: {user.name} (role: {user.role})", flush=True)
+    
     if user.role != 'admin':
         return jsonify({'message': 'Admin access required'}), 403
     
     # Handle multiple files
     files = request.files.getlist('files')
+    print(f"📁 Files received: {len(files)}", flush=True)
+    
     if not files or len(files) == 0:
+        print("❌ No files in request", flush=True)
         return jsonify({'message': 'No files uploaded'}), 400
     
     # Get active callers
@@ -571,6 +576,9 @@ def upload_csv():
         
     except Exception as e:
         db.session.rollback()
+        print(f"❌ Upload error: {str(e)}", flush=True)
+        import traceback
+        traceback.print_exc()
         return jsonify({'message': f'Error processing files: {str(e)}'}), 500
 
 # Caller Routes
