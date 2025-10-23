@@ -543,7 +543,8 @@ def upload_csv():
                 record = Record(
                     caller_id=caller.id,
                     phone_number=phone_number,
-                    name=record_data['name']
+                    name=record_data['name'],
+                    hidden_from_caller=False
                 )
                 db.session.add(record)
                 file_records_added += 1
