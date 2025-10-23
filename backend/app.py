@@ -438,13 +438,19 @@ def upload_csv():
                 import csv
                 import io
                 
+                print(f"📄 Processing CSV file: {file.filename}", flush=True)
+                
                 file.seek(0)
                 content = file.read().decode('utf-8-sig')
                 csv_reader = csv.DictReader(io.StringIO(content))
                 
+                print(f"📋 CSV columns: {csv_reader.fieldnames}", flush=True)
+                
                 # Smart phone column detection
                 phone_col = find_column(csv_reader.fieldnames, 
                     ['phone', 'mobile', 'number', 'contact', 'cell', 'telephone'])
+                
+                print(f"📞 Phone column detected: {phone_col}", flush=True)
                 
                 if not phone_col:
                     file_results.append({
@@ -459,7 +465,9 @@ def upload_csv():
                     ['name', 'customer', 'client', 'person', 'full_name', 'firstname'])
                 
                 seen_phones = set()
+                row_count = 0
                 for row in csv_reader:
+                    row_count += 1
                     phone = str(row.get(phone_col, '')).strip()
                     if phone and phone not in seen_phones:
                         seen_phones.add(phone)
@@ -467,6 +475,8 @@ def upload_csv():
                             'phone_number': phone,
                             'name': str(row.get(name_col, '')).strip() if name_col else ''
                         })
+                
+                print(f"✅ Processed {row_count} rows, found {len(records_data)} unique records", flush=True)
             else:
                 try:
                     import pandas as pd
