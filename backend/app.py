@@ -106,6 +106,7 @@ class Record(db.Model):
     notes = db.Column(db.Text)
     visit = db.Column(db.Enum('visited', 'confirmed', 'declined', 'pending', name='visit_status'), default='pending')
     visit_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    hidden_from_caller = db.Column(db.Boolean, default=False)
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
