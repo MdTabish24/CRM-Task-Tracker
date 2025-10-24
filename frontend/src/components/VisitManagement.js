@@ -35,6 +35,20 @@ const VisitManagement = () => {
     course_end_date: '',
     payment_mode: ''
   });
+  const [showOutsiderModal, setShowOutsiderModal] = useState(false);
+  const [outsiderForm, setOutsiderForm] = useState({
+    name: '',
+    phone_number: '',
+    enrolled_course: '',
+    fees_paid: '',
+    course_total_fees: '',
+    discount_rate: '',
+    course_start_date: '',
+    course_end_date: '',
+    payment_mode: '',
+    source_of_reach: '',
+    notes: ''
+  });
 
   useEffect(() => {
     fetchVisits();

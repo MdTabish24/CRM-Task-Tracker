@@ -17,7 +17,7 @@ const CallerDashboard = ({ user, onLogout }) => {
   const [reminderModalRecord, setReminderModalRecord] = useState(null);
   const [reminderQueue, setReminderQueue] = useState([]);
   const [showAlarmPopup, setShowAlarmPopup] = useState(false);
-  const [activeTab, setActiveTab] = useState('tasks'); // tasks, alarms, visited, confirmed, other
+  const [activeTab, setActiveTab] = useState('tasks'); // tasks, alarms, try_again, visited, confirmed, other
 
   useEffect(() => {
     fetchRecords();
@@ -40,6 +40,7 @@ const CallerDashboard = ({ user, onLogout }) => {
     
     try {
       const tab = activeTab === 'alarms' ? 'alarms' : 
+                  activeTab === 'try_again' ? 'try_again' :
                   activeTab === 'visited' ? 'visited' :
                   activeTab === 'confirmed' ? 'confirmed' : 'other';
       const response = await api.get(`/caller/records?page=${currentPage}&search=${search}&tab=${tab}`);
@@ -116,6 +117,39 @@ const CallerDashboard = ({ user, onLogout }) => {
     }
   };
 
+  const handleWhatsAppClick = (phoneNumber, name) => {
+    // Format phone number - remove spaces, dashes, and add country code if needed
+    let formattedNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+    
+    // Add +91 if number doesn't start with + or country code
+    if (!formattedNumber.startsWith('+')) {
+      if (!formattedNumber.startsWith('91') && formattedNumber.length === 10) {
+        formattedNumber = '91' + formattedNumber;
+      }
+    }
+    
+    // Create pre-filled message template
+    const studentName = name || 'Student';
+    const message = `Hello ${studentName},
+
+I hope this message finds you well. I'm reaching out from [Your Institute Name] regarding your interest in our courses.
+
+We would love to discuss how we can help you achieve your career goals. When would be a convenient time for you to talk?
+
+Looking forward to hearing from you!
+
+Best regards,
+${user.name}
+[Your Institute Name]`;
+    
+    // Encode message for URL
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Open WhatsApp Web with pre-filled message
+    const whatsappUrl = `https://web.whatsapp.com/send?phone=${formattedNumber}&text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   const handleUpdateRecord = async (recordId, updates) => {
     try {
       await api.patch(`/records/${recordId}`, updates);
@@ -144,15 +178,67 @@ const CallerDashboard = ({ user, onLogout }) => {
       response: record.response || '',
       notes: record.notes || ''
     });
+    const [responseType, setResponseType] = useState(() => {
+      // Determine initial response type
+      const resp = record.response || '';
+      if (resp === 'Positive') return 'positive';
+      if (resp === 'Negative') return 'negative';
+      if (resp === 'Not Picked') return 'not_picked';
+      if (resp) return 'other';
+      return '';
+    });
+    const [customResponse, setCustomResponse] = useState(() => {
+      const resp = record.response || '';
+      if (['Positive', 'Negative', 'Not Picked'].includes(resp)) return '';
+      return resp;
+    });
 
     const handleSubmit = (e) => {
       e.preventDefault();
-      onSave(record.id, formData);
+      
+      // Set response based on type
+      let finalResponse = '';
+      if (responseType === 'positive') finalResponse = 'Positive';
+      else if (responseType === 'negative') finalResponse = 'Negative';
+      else if (responseType === 'not_picked') finalResponse = 'Not Picked';
+      else if (responseType === 'other') finalResponse = customResponse;
+      
+      onSave(record.id, {
+        ...formData,
+        response: finalResponse
+      });
     };
 
     return (
       <tr>
-        <td>{record.phone_number}</td>
+        <td>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>{record.phone_number}</span>
+            <button
+              onClick={() => handleWhatsAppClick(record.phone_number, formData.name || record.name)}
+              title="Open WhatsApp chat"
+              type="button"
+              style={{
+                background: '#25D366',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '18px',
+                padding: '0',
+                transition: 'transform 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+              onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              💬
+            </button>
+          </div>
+        </td>
         <td>
           <input
             type="text"
@@ -163,13 +249,28 @@ const CallerDashboard = ({ user, onLogout }) => {
           />
         </td>
         <td>
-          <textarea
-            value={formData.response}
-            onChange={(e) => setFormData({...formData, response: e.target.value})}
+          <select
+            value={responseType}
+            onChange={(e) => setResponseType(e.target.value)}
             className="form-control"
-            placeholder="Enter response"
-            rows="2"
-          />
+            style={{ marginBottom: '0.5rem' }}
+          >
+            <option value="">-- Select Response --</option>
+            <option value="positive">✅ Positive</option>
+            <option value="negative">❌ Negative</option>
+            <option value="not_picked">📵 Not Picked</option>
+            <option value="other">📝 Other</option>
+          </select>
+          
+          {responseType === 'other' && (
+            <textarea
+              value={customResponse}
+              onChange={(e) => setCustomResponse(e.target.value)}
+              className="form-control"
+              placeholder="Enter custom response"
+              rows="2"
+            />
+          )}
         </td>
         <td>
           <textarea
@@ -266,6 +367,20 @@ const CallerDashboard = ({ user, onLogout }) => {
                 ⏰ With Alarms
               </button>
               <button
+                onClick={() => { setActiveTab('try_again'); setCurrentPage(1); }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  border: 'none',
+                  background: activeTab === 'try_again' ? '#007bff' : 'transparent',
+                  color: activeTab === 'try_again' ? 'white' : '#666',
+                  cursor: 'pointer',
+                  borderBottom: activeTab === 'try_again' ? '3px solid #007bff' : 'none',
+                  fontWeight: activeTab === 'try_again' ? 'bold' : 'normal'
+                }}
+              >
+                🔄 Try Again
+              </button>
+              <button
                 onClick={() => { setActiveTab('visited'); setCurrentPage(1); }}
                 style={{
                   padding: '0.75rem 1.5rem',
@@ -317,6 +432,7 @@ const CallerDashboard = ({ user, onLogout }) => {
             <>
               <h2>
                 {activeTab === 'alarms' && 'Records with Alarms'}
+                {activeTab === 'try_again' && 'Try Again - Not Picked Calls'}
                 {activeTab === 'visited' && 'Visited Records (Read Only)'}
                 {activeTab === 'confirmed' && 'Confirmed Records'}
                 {activeTab === 'other' && 'Other Records'}
@@ -358,7 +474,33 @@ const CallerDashboard = ({ user, onLogout }) => {
                   />
                 ) : (
                   <tr key={record.id}>
-                    <td>{record.phone_number}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span>{record.phone_number}</span>
+                        <button
+                          onClick={() => handleWhatsAppClick(record.phone_number, record.name)}
+                          title="Open WhatsApp chat"
+                          style={{
+                            background: '#25D366',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '32px',
+                            height: '32px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '18px',
+                            padding: '0',
+                            transition: 'transform 0.2s'
+                          }}
+                          onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                          onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        >
+                          💬
+                        </button>
+                      </div>
+                    </td>
                     <td>{record.name || '-'}</td>
                     <td>{record.response || '-'}</td>
                     <td>{record.notes || '-'}</td>

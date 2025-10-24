@@ -6,29 +6,55 @@ const UploadCSV = ({ onUploadSuccess }) => {
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [showDistributionModal, setShowDistributionModal] = useState(false);
+  const [distributionType, setDistributionType] = useState('equal'); // 'equal' or 'single'
+  const [selectedCaller, setSelectedCaller] = useState('');
+  const [callers, setCallers] = useState([]);
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const selectedFiles = Array.from(e.target.files);
     setFiles(selectedFiles);
     setResult(null);
     setError('');
+    
+    // Fetch callers when files are selected
+    if (selectedFiles.length > 0) {
+      try {
+        const response = await api.get('/users');
+        const callerUsers = response.data.users.filter(u => u.role === 'caller');
+        setCallers(callerUsers);
+        setShowDistributionModal(true);
+      } catch (error) {
+        console.error('Error fetching callers:', error);
+      }
+    }
   };
 
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    
+  const handleUpload = async () => {
     if (files.length === 0) {
       setError('Please select at least one file');
+      return;
+    }
+    
+    if (distributionType === 'single' && !selectedCaller) {
+      setError('Please select a caller');
       return;
     }
 
     setUploading(true);
     setError('');
+    setShowDistributionModal(false);
 
     const formData = new FormData();
     files.forEach(file => {
       formData.append('files', file);
     });
+    
+    // Add distribution parameters
+    formData.append('distribution_type', distributionType);
+    if (distributionType === 'single') {
+      formData.append('caller_id', selectedCaller);
+    }
 
     try {
       const response = await api.post('/admin/upload', formData, {
@@ -39,10 +65,9 @@ const UploadCSV = ({ onUploadSuccess }) => {
 
       setResult(response.data);
       setFiles([]);
+      setDistributionType('equal');
+      setSelectedCaller('');
       if (onUploadSuccess) onUploadSuccess();
-      
-      // Reset file input
-      e.target.reset();
     } catch (error) {
       setError(error.response?.data?.message || 'Upload failed');
     } finally {
@@ -170,8 +195,109 @@ const UploadCSV = ({ onUploadSuccess }) => {
           </div>
         )}
 
+        {/* Distribution Modal */}
+        {showDistributionModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              padding: '2rem',
+              borderRadius: '8px',
+              maxWidth: '500px',
+              width: '90%'
+            }}>
+              <h3>Choose Distribution Method</h3>
+              
+              <div style={{ marginTop: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '1rem', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    value="equal"
+                    checked={distributionType === 'equal'}
+                    onChange={(e) => setDistributionType(e.target.value)}
+                    style={{ marginRight: '0.5rem' }}
+                  />
+                  <strong>Distribute Equally</strong>
+                  <div style={{ marginLeft: '1.5rem', color: '#666', fontSize: '14px' }}>
+                    Records will be distributed equally among all callers
+                  </div>
+                </label>
+                
+                <label style={{ display: 'block', marginBottom: '1rem', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    value="single"
+                    checked={distributionType === 'single'}
+                    onChange={(e) => setDistributionType(e.target.value)}
+                    style={{ marginRight: '0.5rem' }}
+                  />
+                  <strong>Assign to One Caller</strong>
+                  <div style={{ marginLeft: '1.5rem', color: '#666', fontSize: '14px' }}>
+                    All records will be assigned to a single caller
+                  </div>
+                </label>
+                
+                {distributionType === 'single' && (
+                  <div style={{ marginLeft: '1.5rem', marginTop: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                      Select Caller:
+                    </label>
+                    <select
+                      value={selectedCaller}
+                      onChange={(e) => setSelectedCaller(e.target.value)}
+                      className="form-control"
+                      required
+                    >
+                      <option value="">-- Select Caller --</option>
+                      {callers.map(caller => (
+                        <option key={caller.id} value={caller.id}>
+                          {caller.name} ({caller.username})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+              
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDistributionModal(false);
+                    setFiles([]);
+                    setDistributionType('equal');
+                    setSelectedCaller('');
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUpload}
+                  className="btn btn-primary"
+                  disabled={distributionType === 'single' && !selectedCaller}
+                >
+                  Upload Files
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <button 
-          type="submit" 
+          type="button"
+          onClick={() => document.getElementById('csvFile').click()}
           className="btn btn-primary"
           disabled={files.length === 0 || uploading}
         >

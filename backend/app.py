@@ -145,10 +145,10 @@ class Transaction(db.Model):
 class OtherAdmissions(db.Model):
     __tablename__ = 'other_admissions'
     id = db.Column(db.Integer, primary_key=True)
-    record_id = db.Column(db.Integer, db.ForeignKey('records.id'), nullable=False)
+    record_id = db.Column(db.Integer, db.ForeignKey('records.id'), nullable=True)  # Nullable for outsiders
     phone_number = db.Column(db.String(20), nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    caller_name = db.Column(db.String(100), nullable=False)
+    caller_name = db.Column(db.String(100), nullable=True)  # Nullable for outsiders
     response = db.Column(db.Text)
     discount_rate = db.Column(db.Float, nullable=True)
     total_fees = db.Column(db.Float, nullable=True)
@@ -158,6 +158,7 @@ class OtherAdmissions(db.Model):
     course_start_date = db.Column(db.DateTime, nullable=True)
     course_end_date = db.Column(db.DateTime, nullable=True)
     payment_mode = db.Column(db.String(100), nullable=True)
+    source_of_reach = db.Column(db.String(200), nullable=True)  # How they found us
     processed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -397,10 +398,26 @@ def upload_csv():
         print("❌ No files in request", flush=True)
         return jsonify({'message': 'No files uploaded'}), 400
     
+    # Get distribution parameters
+    distribution_type = request.form.get('distribution_type', 'equal')
+    caller_id = request.form.get('caller_id')
+    
+    print(f"📊 Distribution type: {distribution_type}", flush=True)
+    
     # Get active callers
-    callers = User.query.filter_by(role='caller').all()
-    if not callers:
-        return jsonify({'message': 'No callers found. Please create caller users first.'}), 400
+    if distribution_type == 'single' and caller_id:
+        # Single caller distribution
+        caller = User.query.get(int(caller_id))
+        if not caller or caller.role != 'caller':
+            return jsonify({'message': 'Invalid caller selected'}), 400
+        callers = [caller]
+        print(f"👤 Assigning all records to: {caller.name}", flush=True)
+    else:
+        # Equal distribution
+        callers = User.query.filter_by(role='caller').all()
+        if not callers:
+            return jsonify({'message': 'No callers found. Please create caller users first.'}), 400
+        print(f"👥 Distributing equally among {len(callers)} callers", flush=True)
     
     try:
         total_records_added = 0
@@ -622,12 +639,14 @@ def get_caller_records():
             is_active=True
         ).all()]
         query = query.filter(Record.id.in_(reminder_record_ids)) if reminder_record_ids else query.filter(Record.id == -1)
+    elif tab == 'try_again':
+        query = query.filter_by(response='Not Picked')
     elif tab == 'visited':
         query = query.filter_by(visit='visited')
     elif tab == 'confirmed':
         query = query.filter_by(visit='confirmed')
     elif tab == 'other':
-        query = query.filter(Record.visit.notin_(['confirmed', 'visited']))
+        query = query.filter(Record.visit.notin_(['confirmed', 'visited'])).filter(Record.response != 'Not Picked')
     
     if search:
         query = query.filter(
@@ -872,6 +891,49 @@ def create_other_admission(record_id):
     db.session.commit()
     
     return jsonify({'message': 'Other admission recorded successfully'})
+
+@app.route('/api/admin/outsider-admission', methods=['POST'])
+@jwt_required()
+def create_outsider_admission():
+    """Create admission for walk-in students (no existing record)"""
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    if user.role != 'admin':
+        return jsonify({'message': 'Admin access required'}), 403
+    
+    data = request.get_json()
+    
+    # Parse dates if provided
+    course_start_date = None
+    course_end_date = None
+    if data.get('course_start_date'):
+        course_start_date = datetime.fromisoformat(data['course_start_date'])
+    if data.get('course_end_date'):
+        course_end_date = datetime.fromisoformat(data['course_end_date'])
+    
+    # Add to Other Admissions table (no record_id for outsiders)
+    other_admission = OtherAdmissions(
+        record_id=None,  # No record for outsiders
+        phone_number=data.get('phone_number', ''),
+        name=data.get('name', ''),
+        caller_name='Walk-in',  # Mark as walk-in
+        response=data.get('notes', ''),
+        discount_rate=data.get('discount_rate'),
+        total_fees=data.get('course_total_fees'),
+        enrolled_course=data.get('enrolled_course'),
+        fees_paid=data.get('fees_paid'),
+        course_total_fees=data.get('course_total_fees'),
+        course_start_date=course_start_date,
+        course_end_date=course_end_date,
+        payment_mode=data.get('payment_mode'),
+        source_of_reach=data.get('source_of_reach'),  # New field
+        processed_by=current_user_id
+    )
+    db.session.add(other_admission)
+    db.session.commit()
+    
+    return jsonify({'message': 'Outsider admission recorded successfully'})
 
 @app.route('/api/admin/admissions', methods=['GET'])
 @jwt_required()
@@ -2349,7 +2411,22 @@ def auto_migrate():
                 db.session.commit()
                 print("✅ Reminder tables created automatically!")
             
-
+            # Add source_of_reach column to other_admissions
+            try:
+                db.session.execute(text("ALTER TABLE other_admissions ADD COLUMN source_of_reach VARCHAR(200)"))
+                db.session.commit()
+                print("✅ Added source_of_reach column")
+            except:
+                pass
+            
+            # Make record_id nullable in other_admissions
+            try:
+                db.session.execute(text("ALTER TABLE other_admissions MODIFY record_id INT NULL"))
+                db.session.execute(text("ALTER TABLE other_admissions MODIFY caller_name VARCHAR(100) NULL"))
+                db.session.commit()
+                print("✅ Updated other_admissions columns")
+            except:
+                pass
                 
     except Exception as e:
         print(f"⚠️ Auto migration skipped: {str(e)}")
