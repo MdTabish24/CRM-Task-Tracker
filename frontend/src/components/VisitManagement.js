@@ -219,6 +219,32 @@ const VisitManagement = () => {
     setShowPaidFeesModal(true);
   };
 
+  const submitOutsiderAdmission = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/admin/outsider-admission', outsiderForm);
+      setShowOutsiderModal(false);
+      setOutsiderForm({
+        name: '',
+        phone_number: '',
+        enrolled_course: '',
+        fees_paid: '',
+        course_total_fees: '',
+        discount_rate: '',
+        course_start_date: '',
+        course_end_date: '',
+        payment_mode: '',
+        source_of_reach: '',
+        notes: ''
+      });
+      fetchStats();
+      alert('Walk-in student admission recorded successfully!');
+    } catch (error) {
+      console.error('Error creating outsider admission:', error);
+      alert('Failed to record admission. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -345,6 +371,41 @@ const VisitManagement = () => {
               </div>
             </div>
 
+            {/* New Visited Button */}
+            <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+              <button
+                onClick={() => setShowOutsiderModal(true)}
+                style={{
+                  padding: '1rem 2rem',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                  transition: 'all 0.3s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.75rem'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.6)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>➕</span>
+                <span>New Visited (Walk-in Student)</span>
+              </button>
+              <p style={{ marginTop: '0.5rem', color: '#666', fontSize: '0.9rem' }}>
+                For students who visited directly without calling
+              </p>
+            </div>
 
           </div>
         </div>
@@ -810,6 +871,302 @@ const VisitManagement = () => {
                 <p>No students have completed their fee payments.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Outsider/Walk-in Student Modal */}
+      {showOutsiderModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1001,
+          overflowY: 'auto', padding: '2rem 0'
+        }}>
+          <div style={{
+            backgroundColor: 'white', padding: '2rem', borderRadius: '12px',
+            width: '800px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.5rem', color: '#333' }}>
+                🚶 New Walk-in Student Admission
+              </h3>
+              <button 
+                onClick={() => setShowOutsiderModal(false)} 
+                style={{ 
+                  background: 'none', border: 'none', fontSize: '2rem', 
+                  cursor: 'pointer', color: '#999', lineHeight: 1 
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <p style={{ color: '#666', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+              Record admission for students who visited directly without prior calling
+            </p>
+
+            <form onSubmit={submitOutsiderAdmission}>
+              {/* Student Basic Info */}
+              <div style={{ 
+                background: '#f8f9fa', 
+                padding: '1.5rem', 
+                borderRadius: '8px', 
+                marginBottom: '1.5rem',
+                border: '1px solid #e9ecef'
+              }}>
+                <h4 style={{ marginTop: 0, marginBottom: '1rem', color: '#495057' }}>
+                  👤 Student Information
+                </h4>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                      Name <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={outsiderForm.name}
+                      onChange={(e) => setOutsiderForm({...outsiderForm, name: e.target.value})}
+                      className="form-control"
+                      placeholder="Enter student name..."
+                      required
+                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #ced4da', borderRadius: '6px' }}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                      Phone Number <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={outsiderForm.phone_number}
+                      onChange={(e) => setOutsiderForm({...outsiderForm, phone_number: e.target.value})}
+                      className="form-control"
+                      placeholder="Enter phone number..."
+                      required
+                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #ced4da', borderRadius: '6px' }}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginTop: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                    📍 Source of Reach <span style={{ color: 'red' }}>*</span>
+                  </label>
+                  <select
+                    value={outsiderForm.source_of_reach}
+                    onChange={(e) => setOutsiderForm({...outsiderForm, source_of_reach: e.target.value})}
+                    className="form-control"
+                    required
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #ced4da', borderRadius: '6px' }}
+                  >
+                    <option value="">-- How did they find us? --</option>
+                    <option value="Walk-in">🚶 Walk-in (Direct Visit)</option>
+                    <option value="Google Search">🔍 Google Search</option>
+                    <option value="Facebook">📘 Facebook</option>
+                    <option value="Instagram">📸 Instagram</option>
+                    <option value="WhatsApp">💬 WhatsApp</option>
+                    <option value="Friend Referral">👥 Friend Referral</option>
+                    <option value="Family Referral">👨‍👩‍👧 Family Referral</option>
+                    <option value="Banner/Poster">🪧 Banner/Poster</option>
+                    <option value="Newspaper Ad">📰 Newspaper Ad</option>
+                    <option value="Previous Student">🎓 Previous Student</option>
+                    <option value="Other">📝 Other</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Course Details */}
+              <div style={{ 
+                background: '#e8f5e9', 
+                padding: '1.5rem', 
+                borderRadius: '8px', 
+                marginBottom: '1.5rem',
+                border: '1px solid #c8e6c9'
+              }}>
+                <h4 style={{ marginTop: 0, marginBottom: '1rem', color: '#2e7d32' }}>
+                  📚 Course Details
+                </h4>
+                
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                    Enrolled Course <span style={{ color: 'red' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={outsiderForm.enrolled_course}
+                    onChange={(e) => setOutsiderForm({...outsiderForm, enrolled_course: e.target.value})}
+                    className="form-control"
+                    placeholder="Enter course name..."
+                    required
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #ced4da', borderRadius: '6px' }}
+                  />
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                      Course Start Date
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={outsiderForm.course_start_date}
+                      onChange={(e) => setOutsiderForm({...outsiderForm, course_start_date: e.target.value})}
+                      className="form-control"
+                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #ced4da', borderRadius: '6px' }}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                      Course End Date
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={outsiderForm.course_end_date}
+                      onChange={(e) => setOutsiderForm({...outsiderForm, course_end_date: e.target.value})}
+                      className="form-control"
+                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #ced4da', borderRadius: '6px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Details */}
+              <div style={{ 
+                background: '#fff3e0', 
+                padding: '1.5rem', 
+                borderRadius: '8px', 
+                marginBottom: '1.5rem',
+                border: '1px solid #ffe0b2'
+              }}>
+                <h4 style={{ marginTop: 0, marginBottom: '1rem', color: '#e65100' }}>
+                  💰 Payment Details
+                </h4>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                      Course Total Fees
+                    </label>
+                    <input
+                      type="number"
+                      value={outsiderForm.course_total_fees}
+                      onChange={(e) => setOutsiderForm({...outsiderForm, course_total_fees: e.target.value})}
+                      className="form-control"
+                      placeholder="Total fees..."
+                      min="0"
+                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #ced4da', borderRadius: '6px' }}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                      Discount Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={outsiderForm.discount_rate}
+                      onChange={(e) => setOutsiderForm({...outsiderForm, discount_rate: e.target.value})}
+                      className="form-control"
+                      placeholder="Discount %..."
+                      min="0"
+                      max="100"
+                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #ced4da', borderRadius: '6px' }}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                      Fees Paid
+                    </label>
+                    <input
+                      type="number"
+                      value={outsiderForm.fees_paid}
+                      onChange={(e) => setOutsiderForm({...outsiderForm, fees_paid: e.target.value})}
+                      className="form-control"
+                      placeholder="Amount paid..."
+                      min="0"
+                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #ced4da', borderRadius: '6px' }}
+                    />
+                  </div>
+                </div>
+                
+                <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                    Payment Mode
+                  </label>
+                  <select
+                    value={outsiderForm.payment_mode}
+                    onChange={(e) => setOutsiderForm({...outsiderForm, payment_mode: e.target.value})}
+                    className="form-control"
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #ced4da', borderRadius: '6px' }}
+                  >
+                    <option value="">-- Select Payment Mode --</option>
+                    <option value="Cash">💵 Cash</option>
+                    <option value="Card">💳 Card</option>
+                    <option value="UPI">📱 UPI</option>
+                    <option value="Bank Transfer">🏦 Bank Transfer</option>
+                    <option value="Cheque">📝 Cheque</option>
+                    <option value="Other">📋 Other</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Additional Notes */}
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                  📝 Additional Notes
+                </label>
+                <textarea
+                  value={outsiderForm.notes}
+                  onChange={(e) => setOutsiderForm({...outsiderForm, notes: e.target.value})}
+                  className="form-control"
+                  placeholder="Any additional information..."
+                  rows="3"
+                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #ced4da', borderRadius: '6px', resize: 'vertical' }}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '2px solid #e9ecef' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowOutsiderModal(false)} 
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    fontSize: '1rem'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    padding: '0.75rem 2rem',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '1rem',
+                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
+                  }}
+                >
+                  ✅ Record Admission
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
