@@ -1,0 +1,65 @@
+================================================================================
+                    🚨 RENDER FIX - DO THIS RIGHT NOW! 🚨
+================================================================================
+
+STEP 1: Open Browser
+--------------------
+Go to: https://dashboard.render.com
+
+
+STEP 2: Find Your Service
+--------------------------
+Click on: crm-task-tracker
+
+
+STEP 3: Go to Settings
+-----------------------
+Click the "Settings" tab at the top
+
+
+STEP 4: Scroll Down
+--------------------
+Find the section called "Start Command"
+
+
+STEP 5: Click Edit
+-------------------
+Click the "Edit" button next to Start Command
+
+
+STEP 6: Change the Command
+---------------------------
+DELETE THIS:
+    python migrate_render.py && python wsgi.py
+
+TYPE THIS:
+    python wsgi.py
+
+
+STEP 7: Save
+------------
+Click "Save Changes" button
+
+
+STEP 8: Deploy
+--------------
+Scroll to top
+Click "Manual Deploy" button
+Click "Deploy latest commit"
+
+
+================================================================================
+                              THAT'S IT! ✅
+================================================================================
+
+The deploy will succeed because:
+- You already added the column via SQL ✅
+- No migration script needed ✅
+- Server will start normally ✅
+
+Expected result:
+    ==> Building... ✅
+    ==> Starting service... ✅
+    ==> Live ✅
+
+================================================================================
