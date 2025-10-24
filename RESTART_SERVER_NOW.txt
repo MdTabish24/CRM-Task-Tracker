@@ -1,0 +1,32 @@
+================================================================================
+                    🔄 RESTART LOCAL SERVER NOW!
+================================================================================
+
+PROBLEM:
+--------
+Column added to database ✅
+But server still running with OLD code ❌
+
+SOLUTION:
+---------
+RESTART YOUR LOCAL SERVER!
+
+STEPS:
+------
+1. Go to terminal where server is running
+2. Press: Ctrl + C
+3. Wait for server to stop
+4. Run: python start.py
+5. Wait for server to start
+6. Test again!
+
+================================================================================
+
+After restart:
+- Column will be recognized ✅
+- "New Visited" feature will work ✅
+- No more 500 errors ✅
+
+RESTART KARO ABHI! 🚀
+
+================================================================================
