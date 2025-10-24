@@ -391,6 +391,26 @@ def upload_csv():
     if user.role != 'admin':
         return jsonify({'message': 'Admin access required'}), 403
     
+    # Debug: Check if hidden_from_caller column exists
+    try:
+        from sqlalchemy import text
+        result = db.session.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='records' AND column_name='hidden_from_caller'
+        """))
+        if result.fetchone():
+            print("✅ Database check: hidden_from_caller column exists", flush=True)
+        else:
+            print("❌ WARNING: hidden_from_caller column does NOT exist in database!", flush=True)
+            print("❌ Please run: python backend/add_hidden_from_caller_field.py", flush=True)
+            return jsonify({
+                'message': 'Database migration required. Please contact administrator.',
+                'error': 'hidden_from_caller column missing'
+            }), 500
+    except Exception as e:
+        print(f"❌ Error checking database schema: {e}", flush=True)
+    
     # Handle multiple files
     files = request.files.getlist('files')
     print(f"📁 Files received: {len(files)}", flush=True)
@@ -581,6 +601,9 @@ def upload_csv():
                     file_records_added += 1
                 except Exception as e:
                     print(f"❌ Error adding record {phone_number}: {str(e)}", flush=True)
+                    print(f"❌ Error type: {type(e).__name__}", flush=True)
+                    import traceback
+                    print(f"❌ Traceback: {traceback.format_exc()}", flush=True)
                     continue
             
             print(f"✅ Added {file_records_added} records, skipped {file_skipped_duplicates} duplicates", flush=True)
