@@ -6,8 +6,14 @@ Adds hidden_from_caller column to records table
 import os
 import sys
 
-# Set path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
+# Set path - check if backend folder exists
+backend_path = os.path.join(os.path.dirname(__file__), 'backend')
+if os.path.exists(backend_path):
+    sys.path.insert(0, backend_path)
+    print("📁 Using backend folder structure")
+else:
+    # On Render, files are in root
+    print("📁 Using root folder structure")
 
 print("=" * 70)
 print("🚀 RENDER MIGRATION: Adding hidden_from_caller column")
@@ -23,8 +29,20 @@ if not database_url:
 print(f"\n📊 Database: {database_url[:50]}...")
 
 # Import after setting path
-from app import app, db
-from sqlalchemy import text
+try:
+    from app import app, db
+    from sqlalchemy import text
+    print("✅ Successfully imported app modules")
+except ImportError as e:
+    print(f"❌ Import error: {e}")
+    print("❌ Trying alternative import...")
+    try:
+        from backend.app import app, db
+        from sqlalchemy import text
+        print("✅ Successfully imported from backend.app")
+    except ImportError as e2:
+        print(f"❌ Failed to import: {e2}")
+        sys.exit(1)
 
 def run_migration():
     """Add hidden_from_caller column"""

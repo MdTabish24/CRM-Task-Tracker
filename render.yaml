@@ -3,7 +3,7 @@ services:
     name: crm-backend
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: python migrate_render.py && python wsgi.py
+    startCommand: python wsgi.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.0
