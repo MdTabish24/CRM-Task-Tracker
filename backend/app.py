@@ -932,38 +932,71 @@ def create_outsider_admission():
     if user.role != 'admin':
         return jsonify({'message': 'Admin access required'}), 403
     
-    data = request.get_json()
-    
-    # Parse dates if provided
-    course_start_date = None
-    course_end_date = None
-    if data.get('course_start_date'):
-        course_start_date = datetime.fromisoformat(data['course_start_date'])
-    if data.get('course_end_date'):
-        course_end_date = datetime.fromisoformat(data['course_end_date'])
-    
-    # Add to Other Admissions table (no record_id for outsiders)
-    other_admission = OtherAdmissions(
-        record_id=None,  # No record for outsiders
-        phone_number=data.get('phone_number', ''),
-        name=data.get('name', ''),
-        caller_name='Walk-in',  # Mark as walk-in
-        response=data.get('notes', ''),
-        discount_rate=data.get('discount_rate'),
-        total_fees=data.get('course_total_fees'),
-        enrolled_course=data.get('enrolled_course'),
-        fees_paid=data.get('fees_paid'),
-        course_total_fees=data.get('course_total_fees'),
-        course_start_date=course_start_date,
-        course_end_date=course_end_date,
-        payment_mode=data.get('payment_mode'),
-        source_of_reach=data.get('source_of_reach'),  # New field
-        processed_by=current_user_id
-    )
-    db.session.add(other_admission)
-    db.session.commit()
-    
-    return jsonify({'message': 'Outsider admission recorded successfully'})
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        phone_number = data.get('phone_number', '').strip()
+        name = data.get('name', '').strip()
+        enrolled_course = data.get('enrolled_course', '').strip()
+        source_of_reach = data.get('source_of_reach', '').strip()
+        
+        if not phone_number:
+            return jsonify({'message': 'Phone number is required'}), 400
+        if not name:
+            return jsonify({'message': 'Name is required'}), 400
+        if not enrolled_course:
+            return jsonify({'message': 'Enrolled course is required'}), 400
+        if not source_of_reach:
+            return jsonify({'message': 'Source of reach is required'}), 400
+        
+        # Parse dates if provided
+        course_start_date = None
+        course_end_date = None
+        if data.get('course_start_date'):
+            try:
+                course_start_date = datetime.fromisoformat(data['course_start_date'])
+            except:
+                pass
+        if data.get('course_end_date'):
+            try:
+                course_end_date = datetime.fromisoformat(data['course_end_date'])
+            except:
+                pass
+        
+        # Convert numeric fields
+        discount_rate = float(data.get('discount_rate')) if data.get('discount_rate') else None
+        fees_paid = int(data.get('fees_paid')) if data.get('fees_paid') else 0
+        course_total_fees = int(data.get('course_total_fees')) if data.get('course_total_fees') else 0
+        
+        # Add to Other Admissions table (no record_id for outsiders)
+        other_admission = OtherAdmissions(
+            record_id=None,  # No record for outsiders
+            phone_number=phone_number,
+            name=name,
+            caller_name='Walk-in',  # Mark as walk-in
+            response=data.get('notes', ''),
+            discount_rate=discount_rate,
+            total_fees=course_total_fees,
+            enrolled_course=enrolled_course,
+            fees_paid=fees_paid,
+            course_total_fees=course_total_fees,
+            course_start_date=course_start_date,
+            course_end_date=course_end_date,
+            payment_mode=data.get('payment_mode', ''),
+            source_of_reach=source_of_reach,
+            processed_by=current_user_id
+        )
+        db.session.add(other_admission)
+        db.session.commit()
+        
+        return jsonify({'message': 'Outsider admission recorded successfully'})
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error creating outsider admission: {str(e)}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Error recording admission: {str(e)}'}), 500
 
 @app.route('/api/admin/admissions', methods=['GET'])
 @jwt_required()
