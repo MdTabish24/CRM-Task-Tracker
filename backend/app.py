@@ -656,8 +656,8 @@ def get_caller_records():
     search = request.args.get('search', '')
     tab = request.args.get('tab', 'all')  # all, alarms, confirmed, other
     
-    # Base query
-    query = Record.query.filter_by(caller_id=current_user_id)
+    # Base query - exclude hidden records
+    query = Record.query.filter_by(caller_id=current_user_id, hidden_from_caller=False)
     
     # Filter by tab
     if tab == 'alarms':
@@ -674,7 +674,9 @@ def get_caller_records():
     elif tab == 'confirmed':
         query = query.filter_by(visit='confirmed')
     elif tab == 'other':
-        query = query.filter(Record.visit.notin_(['confirmed', 'visited'])).filter(Record.response != 'Not Picked')
+        # Show records that are not confirmed/visited and not "Not Picked"
+        query = query.filter(Record.visit.notin_(['confirmed', 'visited']))
+        query = query.filter(db.or_(Record.response != 'Not Picked', Record.response.is_(None)))
     
     if search:
         query = query.filter(
