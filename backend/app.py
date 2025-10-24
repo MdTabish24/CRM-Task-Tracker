@@ -20,7 +20,9 @@ load_dotenv()
 # Set static folder to frontend build
 # In production, build folder is in the same directory as app.py
 static_folder = 'build' if os.path.exists('build') else '../frontend/build'
-app = Flask(__name__, static_folder=static_folder, static_url_path='')
+if not os.path.exists(static_folder):
+    static_folder = None
+app = Flask(__name__, static_folder=static_folder, static_url_path='' if static_folder else None)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
 # Database configuration - PostgreSQL only
@@ -206,7 +208,9 @@ class ReminderQueue(db.Model):
 @app.route('/')
 def serve_frontend():
     print("ROOT ROUTE HIT")
-    return send_from_directory(app.static_folder, 'index.html')
+    if app.static_folder and os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        return send_from_directory(app.static_folder, 'index.html')
+    return jsonify({'message': 'CRM API is running', 'status': 'ok', 'note': 'Frontend not deployed'}), 200
 
 @app.route('/favicon.ico')
 def favicon():
