@@ -103,17 +103,18 @@ const CallerDashboard = ({ user, onLogout }) => {
     setReminderModalRecord(record);
   };
 
-  const handleHideRecord = async (recordId) => {
-    if (!window.confirm('Are you sure you want to hide this record?')) {
+  const handleDeleteRecord = async (recordId) => {
+    if (!window.confirm('Are you sure you want to delete this record? This action cannot be undone.')) {
       return;
     }
     
     try {
-      await api.post(`/caller/records/${recordId}/hide`);
-      fetchRecords(); // Refresh list
+      await api.delete(`/records/${recordId}`);
+      fetchRecords();
+      alert('Record deleted successfully');
     } catch (error) {
-      console.error('Error hiding record:', error);
-      alert('Failed to hide record');
+      console.error('Error deleting record:', error);
+      alert('Failed to delete record');
     }
   };
 
@@ -549,9 +550,9 @@ ${user.name}
                             {record.has_alarm ? '⏰✓' : '⏰'}
                           </button>
                           <button 
-                            onClick={() => handleHideRecord(record.id)}
+                            onClick={() => handleDeleteRecord(record.id)}
                             className="btn btn-danger"
-                            title="Hide this record"
+                            title="Delete this record"
                             style={{ fontSize: '14px', padding: '0.25rem 0.75rem' }}
                           >
                             🗑️

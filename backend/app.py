@@ -743,6 +743,23 @@ def update_record(record_id):
     
     return jsonify({'message': 'Record updated successfully'})
 
+@app.route('/api/records/<int:record_id>', methods=['DELETE'])
+@jwt_required()
+def delete_record(record_id):
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    
+    record = Record.query.get_or_404(record_id)
+    
+    # Callers can only delete their own records
+    if user.role == 'caller' and record.caller_id != current_user_id:
+        return jsonify({'message': 'Access denied'}), 403
+    
+    db.session.delete(record)
+    db.session.commit()
+    
+    return jsonify({'message': 'Record deleted successfully'})
+
 
 
 # Admin Routes - Caller Tasks View
